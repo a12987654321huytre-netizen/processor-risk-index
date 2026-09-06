@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
       { title: "Processor Risk Index — payment lockout research" },
       {
         name: "description",
-        content: "Compare the world’s biggest payment processors by shutdown risk, funds-hold risk, reserve policies, support quality and how difficult it is to escape.",
+        content: "Compare 50 major payment processors on lockout risk, funds-hold exposure, support quality and how hard they are to leave.",
       },
     ],
   }),
@@ -24,6 +24,7 @@ export const Route = createFileRoute("/")({
 });
 
 type HomeView =
+  | "all"
   | "riskiest"
   | "safest"
   | "researched"
@@ -34,6 +35,7 @@ type HomeView =
   | "enterprise";
 
 const VIEWS: { id: HomeView; label: string }[] = [
+  { id: "all", label: "All 50" },
   { id: "riskiest", label: "Riskiest" },
   { id: "safest", label: "Safest" },
   { id: "researched", label: "Most researched" },
@@ -66,7 +68,7 @@ function rowsFor(view: HomeView) {
 }
 
 function Home() {
-  const [view, setView] = useState<HomeView>("riskiest");
+  const [view, setView] = useState<HomeView>("all");
   const [q, setQ] = useState("");
   const rows = useMemo(() => rowsFor(view), [view]);
   const hits = q.trim() ? searchProviders(q).slice(0, 6) : [];
@@ -130,7 +132,7 @@ function Home() {
             <Link to="/methodology">How we score them</Link>
           </Button>
         </div>
-        <p className="mt-4 text-sm text-ink-subtle">Because finding out after your payouts are frozen is a terrible research strategy.</p>
+        <p className="mt-4 text-sm text-ink-subtle">This is something to understand, not panic about. Concentration matters more than the logo.</p>
         <div className="mt-6 max-w-xl">
           <ResearchTracker />
         </div>
@@ -167,6 +169,7 @@ function Home() {
         <RankCards rows={rows} />
         <p className="mt-3 text-xs text-ink-subtle">
           Higher = greater merchant lockout exposure. Not a probability, credit rating, or allegation of wrongdoing.
+          All payment processors involve trade-offs. Some are easier to live with than others, and concentration matters.
         </p>
       </section>
 
@@ -174,16 +177,16 @@ function Home() {
         <HomeCard
           to="/how-cooked"
           title="How cooked are you?"
-          body="Provider risk is one number. Your exposure is another. 100% of revenue on one account is the scary bit."
+          body="Provider risk is one number. Your exposure is how concentrated the setup is."
         />
         <HomeCard
           to="/escape"
           title="Build your escape hatch"
-          body="Primary card rail, backup card, independent bank-payment, optional wallet, optional MoR. Watch for the same family tree twice."
+          body="Primary card, backup card, independent bank-payment. A backup is sensible, not an evacuation order."
         />
         <HomeCard
           to="/methodology"
-          title="The boring bit that can bankrupt you"
+          title="How we score them"
           body="Seven dimensions, cited terms, complaint bias, popularity bias. Scores are not jokes. The headlines can be."
         />
       </section>

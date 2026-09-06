@@ -78,7 +78,7 @@ export type RankFilters = {
   region?: Region | "all";
   type?: ProviderType | "all";
   model?: BusinessModel | "all";
-  risk?: "all" | "low" | "guarded" | "moderate" | "high" | "very-high" | "extreme";
+  risk?: "all" | "low" | "guarded" | "moderate" | "elevated" | "high" | "severe" | "very-high" | "extreme";
   confidence?: "all" | "high" | "medium" | "low";
   status?: "all" | "verified" | "provisional" | "in-research" | "pending";
   q?: string;
@@ -119,7 +119,8 @@ export function filterProviders(f: RankFilters): Provider[] {
   if (f.status && f.status !== "all") list = list.filter((p) => p.researchStatus === f.status);
   if (f.model && f.model !== "all") list = list.filter((p) => supportsModel(p, f.model as BusinessModel));
   if (f.risk && f.risk !== "all") {
-    list = list.filter((p) => bandFor(p.publishedOverall)?.id === f.risk);
+    const want = f.risk === "very-high" ? "high" : f.risk === "extreme" ? "severe" : f.risk;
+    list = list.filter((p) => bandFor(p.publishedOverall)?.id === want);
   }
   if (f.confidence && f.confidence !== "all") {
     list = list.filter((p) => confidenceLabel(p.confidence).tone === f.confidence);

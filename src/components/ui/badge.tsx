@@ -6,7 +6,7 @@ export function Badge({
   tone = "neutral",
   ...props
 }: HTMLAttributes<HTMLSpanElement> & {
-  tone?: "neutral" | "accent" | "low" | "guarded" | "moderate" | "high" | "very-high" | "extreme";
+  tone?: "neutral" | "accent" | "low" | "guarded" | "moderate" | "elevated" | "high" | "severe" | "very-high" | "extreme";
 }) {
   const tones: Record<string, string> = {
     neutral: "bg-surface text-ink-muted border-border",
@@ -14,9 +14,11 @@ export function Badge({
     low: "bg-risk-low-bg text-risk-low border-risk-low/20",
     guarded: "bg-risk-guarded-bg text-risk-guarded border-risk-guarded/20",
     moderate: "bg-risk-moderate-bg text-risk-moderate border-risk-moderate/20",
+    elevated: "bg-risk-elevated-bg text-risk-elevated border-risk-elevated/20",
     high: "bg-risk-high-bg text-risk-high border-risk-high/20",
     "very-high": "bg-risk-very-high-bg text-risk-very-high border-risk-very-high/20",
     extreme: "bg-risk-extreme-bg text-risk-extreme border-risk-extreme/20",
+    severe: "bg-risk-severe-bg text-risk-severe border-risk-severe/20",
   };
   return (
     <span

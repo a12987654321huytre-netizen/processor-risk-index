@@ -28,10 +28,14 @@
   --color-risk-moderate-bg: #efe4c8;
   --color-risk-high: #b85c1a;
   --color-risk-high-bg: #f3ddc8;
+  --color-risk-elevated: #9a5b16;
+  --color-risk-elevated-bg: #f3ddc8;
   --color-risk-very-high: #a33a2c;
   --color-risk-very-high-bg: #f0d4cf;
   --color-risk-extreme: #7a1f1f;
   --color-risk-extreme-bg: #ead0d0;
+  --color-risk-severe: #7a1f1f;
+  --color-risk-severe-bg: #ead0d0;
 
   --color-official: #1a6b5c;
   --color-merchant: #6b5344;

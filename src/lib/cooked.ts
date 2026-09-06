@@ -23,6 +23,8 @@ export type CookedInput = {
   cashBuffer: "under-1m" | "1-3m" | "over-3m";
 };
 
+export type ExposureId = "low" | "moderate" | "elevated" | "high";
+
 export type CookedResult = {
   providerRisk: number;
   exposure: number;
@@ -33,7 +35,15 @@ export type CookedResult = {
   observations: string[];
   fixes: string[];
   processor: Provider;
+  exposureId: ExposureId;
 };
+
+export function exposureBand(n: number): { id: ExposureId; label: string; cheeky: string } {
+  if (n <= 34) return { id: "low", label: "Low exposure", cheeky: "Good setup. Keep it boring." };
+  if (n <= 54) return { id: "moderate", label: "Moderate exposure", cheeky: "No immediate drama here." };
+  if (n <= 69) return { id: "elevated", label: "Elevated exposure", cheeky: "A backup is sensible, not an evacuation order." };
+  return { id: "high", label: "High exposure", cheeky: "Worth planning around." };
+}
 
 export function evaluateCooked(input: CookedInput): CookedResult | null {
   const p = getProvider(input.processorId);
@@ -42,6 +52,8 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
   let exposure = providerRisk;
   const observations: string[] = [];
   const fixes: string[] = [];
+  const hasBackup = Boolean(input.backupId);
+  const hasRail = input.independentRail;
 
   observations.push(
     `Provider risk: ${providerRisk}/100 (${bandFor(providerRisk)?.label ?? "n/a"}, #${p.rank} of 50). That is the processor. Your exposure is how much of the business sits on it. Evidence confidence ${p.confidence}/100 (${p.researchStatus}).`,
@@ -49,8 +61,12 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
 
   if (input.revenueShare === "all") {
     exposure += 18;
-    observations.push("100% of revenue through one provider. The processor isn’t the scariest part. Your dependency is.");
-    fixes.push("Move a slice of new volume to a second live processor while this account is healthy.");
+    if (!hasBackup) {
+      observations.push("100% of revenue through one provider. The processor isn’t the scariest part. Your dependency is.");
+      fixes.push("Move a slice of new volume to a second live processor while this account is healthy.");
+    } else {
+      observations.push("Most of the volume still sits here. The backup is the important part — keep it tested.");
+    }
   } else if (input.revenueShare === "most") {
     exposure += 10;
     observations.push("Most revenue on one account. A payout pause still hits payroll.");
@@ -60,7 +76,7 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
     observations.push("Minor share on this processor. Blast radius is smaller — still check token portability.");
   }
 
-  if (!input.backupId) {
+  if (!hasBackup) {
     exposure += 12;
     observations.push(`No backup processor is connected. ${p.name} is not the entire problem — one account is.`);
     fixes.push("Connect a backup card processor while this account is healthy.");
@@ -79,7 +95,7 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
     }
   }
 
-  if (!input.independentRail) {
+  if (!hasRail) {
     exposure += 4;
     observations.push("No independent payment rail. Another card processor is useful. Another rail is better.");
     fixes.push("Add a pay-by-bank or local rail that does not share this processor's infrastructure.");
@@ -89,10 +105,10 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
 
   if (input.cashBuffer === "under-1m") {
     exposure += 8;
-    observations.push("Under a month of operating cash outside the processor. A 120-day hold is then existential.");
+    observations.push("Under a month of operating cash outside the processor. A long payout pause then hits the company, not just the dashboard.");
     fixes.push("Hold operating cash outside the processor so a payout pause is not the whole company.");
-  } else if (input.cashBuffer === "1-3m") {
-    exposure += 3;
+  } else if (input.cashBuffer === "over-3m") {
+    exposure -= 4;
   }
 
   if (input.product === "digital" && (p.badges.digitalGoods === "high" || p.badges.digitalGoods === "very-high")) {
@@ -121,7 +137,7 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
 
   if (input.subscription && p.isMoR) {
     exposure += 6;
-    observations.push("Subscriptions on a Merchant of Record. Customers contracted with them. A shutdown is a re-sale, not an export.");
+    observations.push("Subscriptions on a Merchant of Record. Customers contracted with them. Leaving is a re-sale, not an export.");
     fixes.push("Run a share of new checkouts on a direct (non-MoR) processor.");
   } else if (input.subscription && p.dimensions.dependency >= 6) {
     exposure += 3;
@@ -154,33 +170,57 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
 
   if (p.snapshot.holdsAllowed === true) {
     observations.push(`Contractual holds/reserves are allowed. ${p.ohShit.fundsHeld}`);
-    fixes.push("Hold operating cash outside the processor so a payout pause is not existential.");
+    if (input.cashBuffer === "under-1m") {
+      fixes.push("Hold operating cash outside the processor so a payout pause is not the whole company.");
+    }
   }
 
+  if (hasBackup) {
+    const b = getProvider(input.backupId);
+    const warn = b ? infraWarnings([p.id, input.backupId]) : [];
+    if (b && !warn.length) exposure -= 6;
+  }
+  if (hasRail) exposure -= 4;
+
   exposure = Math.max(0, Math.min(100, Math.round(exposure)));
-  const band = bandFor(exposure);
+  const diversified = input.revenueShare === "half" || input.revenueShare === "minor";
+  const cashOk = input.cashBuffer !== "under-1m";
+  const resilient = hasBackup && (hasRail || diversified) && cashOk;
+  const exp = exposureBand(exposure);
+
   const uniqFixes = [...new Set(fixes)].slice(0, 6);
-  if (!uniqFixes.some((f) => /backup/i.test(f))) uniqFixes.unshift("Keep a second live processor and a bank-payment rail that is not the same company.");
+  if (!hasBackup && !uniqFixes.some((f) => /backup/i.test(f))) {
+    uniqFixes.unshift("Connect a second live processor and a bank-payment rail that is not the same company.");
+  }
+  if (hasBackup && hasRail && uniqFixes.length === 0) {
+    uniqFixes.push("Keep the backup tested. A dormant signup is not a rail.");
+  }
   uniqFixes.push("Keep KYC documents current. Do not hide activity from compliance systems.");
 
-  const signature =
-    exposure <= 45
-      ? "You're actually in decent shape."
-      : input.revenueShare === "all" && !input.backupId
-        ? "Your processor isn't the scary bit. Your dependency is."
-        : exposure >= 75
-          ? "You're pretty cooked."
-          : "Backup processor: cheaper than a nervous breakdown.";
+  let signature: string;
+  if (resilient && exposure <= 50) signature = "You're actually in decent shape.";
+  else if (resilient || (hasBackup && hasRail && exposure < 80))
+    signature = "Your processor risk is elevated, but your setup is resilient.";
+  else if (hasBackup && exposure <= 55) signature = "Good redundancy. Keep it boring.";
+  else if (exposure <= 40) signature = "No immediate drama here.";
+  else if (input.revenueShare === "all" && !hasBackup) signature = "Your processor isn't the scary bit. Your dependency is.";
+  else if (exposure >= 80) signature = "You're pretty cooked.";
+  else if (!hasBackup) signature = "Backup processor: cheaper than a nervous breakdown.";
+  else signature = "Nothing dramatic here — just keep the backup tested.";
+
+  if (resilient) observations.unshift("Good redundancy. Keep it boring.");
+  else if (hasBackup && hasRail) observations.unshift("You've got another rail. Good.");
 
   return {
     providerRisk,
     exposure,
     score: exposure,
-    bandLabel: band?.label ?? "Moderate",
-    cheeky: band?.cheeky ?? "Have a backup",
+    bandLabel: exp.label,
+    cheeky: exp.cheeky,
     signature,
     observations: observations.slice(0, 8),
     fixes: uniqFixes.slice(0, 6),
     processor: p,
+    exposureId: exp.id,
   };
 }

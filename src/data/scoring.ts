@@ -37,7 +37,7 @@ export function withScores(d: DimensionScores): Scores {
 }
 
 export type RiskBand = {
-  id: "low" | "guarded" | "moderate" | "high" | "very-high" | "extreme";
+  id: "low" | "guarded" | "moderate" | "elevated" | "high" | "severe";
   label: string;
   cheeky: string;
   min: number;
@@ -46,12 +46,12 @@ export type RiskBand = {
 };
 
 export const RISK_BANDS: RiskBand[] = [
-  { id: "low", label: "Low", cheeky: "Pretty chill", min: 0, max: 24, colorVar: "risk-low" },
-  { id: "guarded", label: "Guarded", cheeky: "Keep an eye on it", min: 25, max: 39, colorVar: "risk-guarded" },
-  { id: "moderate", label: "Moderate", cheeky: "Have a backup", min: 40, max: 59, colorVar: "risk-moderate" },
-  { id: "high", label: "High", cheeky: "Don't get comfy", min: 60, max: 74, colorVar: "risk-high" },
-  { id: "very-high", label: "Very high", cheeky: "Two processors. Minimum.", min: 75, max: 89, colorVar: "risk-very-high" },
-  { id: "extreme", label: "Extreme dependency", cheeky: "You're living dangerously", min: 90, max: 100, colorVar: "risk-extreme" },
+  { id: "low", label: "Low", cheeky: "Actually pretty chill", min: 0, max: 29, colorVar: "risk-low" },
+  { id: "guarded", label: "Guarded", cheeky: "Keep an eye on it", min: 30, max: 44, colorVar: "risk-guarded" },
+  { id: "moderate", label: "Moderate", cheeky: "This is something to understand, not panic about", min: 45, max: 59, colorVar: "risk-moderate" },
+  { id: "elevated", label: "Elevated", cheeky: "A backup is sensible, not an evacuation order", min: 60, max: 69, colorVar: "risk-elevated" },
+  { id: "high", label: "High", cheeky: "Worth planning around", min: 70, max: 79, colorVar: "risk-high" },
+  { id: "severe", label: "Severe", cheeky: "Two processors is just hygiene", min: 80, max: 100, colorVar: "risk-severe" },
 ];
 
 export function bandFor(score: number | null): RiskBand | null {
@@ -86,14 +86,23 @@ export function flagLabel(f: FlagLevel): string {
     case "low":
       return "Low";
     case "moderate":
-      return "Moderate";
+      return "Limited";
     case "high":
-      return "High";
+      return "Elevated";
     case "very-high":
-      return "Very high";
+      return "High";
     default:
       return "Unknown";
   }
+}
+
+/** Human labels for a 0–10 dimension. Avoids Very high / Extreme. */
+export function dimBand(n: number): { id: RiskBand["id"]; label: string } {
+  if (n <= 2.5) return { id: "low", label: "Low" };
+  if (n <= 4.5) return { id: "guarded", label: "Limited" };
+  if (n <= 6.5) return { id: "moderate", label: "Moderate" };
+  if (n <= 8.5) return { id: "elevated", label: "Elevated" };
+  return { id: "high", label: "High" };
 }
 
 export const DIMENSION_META: {
@@ -180,15 +189,16 @@ export function riskiestFirst(providers: Provider[]): Provider[] {
 
 export function riskAnnotation(n: number | null | undefined): string | null {
   if (n === null || n === undefined) return null;
-  if (n >= 75) return "yeah, we'd have a backup";
-  if (n >= 60) return "worth planning around";
-  if (n >= 40) return "not terrifying, not invisible";
+  if (n >= 80) return "two processors is just hygiene";
+  if (n >= 70) return "worth planning around";
+  if (n >= 60) return "a backup is sensible, not an evacuation order";
+  if (n >= 45) return "this is something to understand, not panic about";
   if (n <= 35) return "boring is good here";
   return null;
 }
 
 export function dependencyAnnotation(n: number): string | null {
-  if (n >= 8) return "this is the bit we'd worry about";
+  if (n >= 8) return "this is the bit we'd actually plan around";
   return null;
 }
 

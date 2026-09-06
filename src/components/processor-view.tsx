@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { DimensionScores, Provider } from "@/data/types";
-import { DIMENSION_META, typeLabel, riskAnnotation, dependencyAnnotation } from "@/data/scoring";
+import { DIMENSION_META, typeLabel, dependencyAnnotation, dimBand } from "@/data/scoring";
 import { alternativeGroups, infraFor, sourcesFor } from "@/data";
 import { researchStatusHint, researchStatusLabel, typeContextNote } from "@/data/eligibility";
 import { formatDimension } from "@/data/rubric";
+import { balancedVerdict, goodChoice, reassureItems } from "@/data/tone";
 import { BandBadge, ConfidenceBadge, FlagChip, Initials, ScoreBar, ScoreNumber } from "@/components/score";
 import { EvidenceChip, FindingCard, SourceLink, sourceTypeLabel } from "@/components/evidence";
 import { Badge } from "@/components/ui/badge";
@@ -65,10 +66,6 @@ function escalationLabel(v: Provider["snapshot"]["escalationQuality"]): string {
   }
 }
 
-function scoreAnnotation(n: number | null): string | null {
-  return riskAnnotation(n);
-}
-
 function formatReceiptDate(s: string): string {
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s;
@@ -79,6 +76,8 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
   const sources = sourcesFor(p);
   const groups = alternativeGroups(p);
   const family = infraFor(p.id);
+  const fit = goodChoice(p);
+  const reassure = reassureItems(p);
   const [openDim, setOpenDim] = useState<keyof DimensionScores | null>(null);
   const drawer = openDim ? p.dimensionExplanations.find((d) => d.key === openDim) : null;
   const depth = p.researchDepth;
@@ -112,9 +111,6 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
         <div className="border border-border bg-bg-elevated p-4 min-w-[220px]">
           <p className="receipt">Risk index</p>
           <ScoreNumber value={p.publishedOverall} size="lg" />
-          {scoreAnnotation(p.publishedOverall) ? (
-            <p className="mt-1 font-mono text-[11px] text-ink-subtle">{scoreAnnotation(p.publishedOverall)}</p>
-          ) : null}
           <div className="mt-2">
             <BandBadge score={p.publishedOverall} />
           </div>
@@ -164,25 +160,40 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
 
       <section className="mt-10">
         <h2 className="font-display text-2xl">The short version</h2>
+        <p className="mt-3 max-w-3xl">{balancedVerdict(p)}</p>
         <p className="mt-3 max-w-3xl text-ink-muted">{p.verdict.short}</p>
-        <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2 text-sm border-t border-border pt-4">
-          <div>
-            <dt className="receipt">Best for</dt>
-            <dd className="mt-1">{p.whoFor.bestFor}</dd>
-          </div>
-          <div>
-            <dt className="receipt">Think twice if</dt>
-            <dd className="mt-1">{p.whoFor.thinkTwiceIf}</dd>
-          </div>
-          <div>
-            <dt className="receipt">Backup recommended</dt>
-            <dd className="mt-1">{p.whoFor.backupRecommended ? "Yes" : "Still a good idea"}</dd>
-          </div>
-          <div>
-            <dt className="receipt">Typical merchant</dt>
-            <dd className="mt-1">{p.whoFor.typicalMerchant}</dd>
-          </div>
-        </dl>
+        <p className="mt-2 font-mono text-[11px] text-ink-subtle">{p.verdict.cheekyLine}</p>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-display text-2xl">When this is actually a good choice</h2>
+        <p className="mt-3 max-w-3xl text-ink-muted">{fit.summary}</p>
+        <p className="mt-3 receipt">Best fit</p>
+        <ul className="mt-2 flex flex-wrap gap-1.5">
+          {fit.fits.map((f) => (
+            <li key={f}>
+              <Badge>{f}</Badge>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-sm text-ink-subtle">Think twice if: {fit.caution}</p>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-display text-2xl">What should reassure you</h2>
+        {reassure.length ? (
+          <ul className="mt-3">
+            {reassure.map((item) => (
+              <li key={item} className="text-sm text-ink-muted border-b border-border py-2">
+                {item}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-ink-subtle">
+            Nothing structured on the positive side yet — see the receipts rather than inventing a compliment.
+          </p>
+        )}
       </section>
 
       <section className="mt-10">
@@ -191,6 +202,7 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
         <ul className="mt-4 grid gap-1">
           {DIMENSION_META.map((d) => {
             const shown = formatDimension(p.dimensions[d.key]);
+            const dim = dimBand(p.dimensions[d.key]);
             const open = openDim === d.key;
             const depNote = d.key === "dependency" ? dependencyAnnotation(p.dimensions.dependency) : null;
             return (
@@ -206,7 +218,10 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
                       <span>
                         {d.label} <span className="text-ink-subtle">({d.weightPct}%)</span>
                       </span>
-                      <span className="tabular">{shown.text}</span>
+                      <span className="tabular">
+                        {shown.text}{" "}
+                        <span className="ml-1 text-[10px] uppercase tracking-wide text-ink-subtle">{dim.label}</span>
+                      </span>
                     </div>
                     <ScoreBar value={p.dimensions[d.key]} />
                     {depNote ? <p className="mt-1 font-mono text-[11px] text-ink-subtle">{depNote}</p> : null}
@@ -425,9 +440,9 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
       </section>
 
       <section className="mt-10 border border-border bg-surface p-5">
-        <h2 className="font-display text-2xl">If they shut you down tomorrow</h2>
+        <h2 className="font-display text-2xl">If this account went away tomorrow</h2>
         <p className="mt-1 text-sm text-ink-muted">
-          Blast radius: <strong>{p.ohShit.blastRadius}</strong>. This is architecture, not a prediction. The worst time to build a fire escape is during the fire.
+          Blast radius: <strong>{p.ohShit.blastRadius}</strong>. This is architecture, not a prediction. A backup is sensible, not an evacuation order.
         </p>
         <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
           <div>

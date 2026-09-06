@@ -16,6 +16,8 @@ export const Route = createFileRoute("/escape")({
 
 function Escape() {
   const [primary, setPrimary] = useState("stripe");
+  const [ownBackup, setOwnBackup] = useState("");
+  const [ownRail, setOwnRail] = useState(false);
   const p = getProvider(primary);
   const matches = useMemo(() => (p ? matchAlternatives(p) : []), [p]);
 
@@ -24,7 +26,7 @@ function Escape() {
     return infraWarnings([primary, id]).length === 0;
   };
 
-  const backupCard =
+  const suggestedBackup =
     matches.find(
       (m) =>
         independentOf(m.provider.id) &&
@@ -32,8 +34,10 @@ function Escape() {
         m.provider.types.some((t) => t === "psp" || t === "direct-acquirer" || t === "payment-aggregator" || t === "merchant-account-provider"),
     )?.provider ?? matches.find((m) => independentOf(m.provider.id))?.provider;
   const bank = PROVIDERS.find((x) => x.types.includes("pay-by-bank") && x.id !== primary && independentOf(x.id));
-  const wallet = PROVIDERS.find((x) => x.types.includes("wallet") && x.id !== primary && x.id !== backupCard?.id);
+  const wallet = PROVIDERS.find((x) => x.types.includes("wallet") && x.id !== primary && x.id !== suggestedBackup?.id);
   const mor = PROVIDERS.find((x) => x.isMoR && x.id !== primary);
+  const haveBackup = getProvider(ownBackup);
+  const backupCard = haveBackup ?? suggestedBackup;
 
   const ids = [primary, backupCard?.id, bank?.id, wallet?.id, mor?.id].filter((x): x is string => Boolean(x));
   const warnings = infraWarnings(ids);
@@ -46,33 +50,64 @@ function Escape() {
   const token = p?.ohShit.paymentDataPortable ?? "Unknown";
   const subs = p?.ohShit.subscriptionsMigrate ?? "Unknown";
   const blast = p?.ohShit.blastRadius ?? "Unknown";
+  const already = Boolean(haveBackup) && ownRail && (!haveBackup || independent(primary, haveBackup.id));
+  const severe = (p?.publishedOverall ?? 0) >= 80;
+
+  const status = already
+    ? { title: "Your escape hatch is already in decent shape.", note: "You've got another rail. Good. Nothing dramatic here — just keep the backup tested." }
+    : haveBackup
+      ? { title: "You've got a backup card. Good.", note: "Add an independent bank rail and keep the backup tested. A backup is sensible, not an evacuation order." }
+      : ownRail
+        ? { title: "You've got another rail. Good.", note: "A second card processor still matters. Cards and bank debit fail for different reasons." }
+        : severe
+          ? { title: "This one is worth planning around.", note: "Backup processor: cheaper than a nervous breakdown." }
+          : { title: "A backup is sensible, not an evacuation order.", note: "Primary card, backup card, independent bank-payment. That is hygiene, not an evacuation." };
 
   return (
     <div className="page-wrap py-10">
-      <p className="meta text-accent">The emergency exit</p>
+      <p className="meta text-accent">The backup plan</p>
       <h1 className="mt-2 font-display text-4xl">Build your escape hatch</h1>
-      <p className="mt-3 max-w-2xl text-ink-muted">
-        If this processor vanished tomorrow, what would you do? Backup processor: cheaper than a nervous breakdown.
-      </p>
+      <p className="mt-3 max-w-2xl text-ink-muted">{status.note}</p>
 
-      <div className="mt-8 max-w-md">
-        <Label htmlFor="primary">Primary processor</Label>
-        <Select id="primary" value={primary} onChange={(e) => setPrimary(e.target.value)}>
-          {PROVIDERS.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
-          ))}
-        </Select>
+      <div className="mt-8 max-w-md grid gap-4">
+        <div>
+          <Label htmlFor="primary">Primary processor</Label>
+          <Select id="primary" value={primary} onChange={(e) => setPrimary(e.target.value)}>
+            {PROVIDERS.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="own-backup">Already have a backup?</Label>
+          <Select id="own-backup" value={ownBackup} onChange={(e) => setOwnBackup(e.target.value)}>
+            <option value="">Not yet</option>
+            {PROVIDERS.filter((x) => x.id !== primary).map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="own-rail">Independent bank / local rail?</Label>
+          <Select id="own-rail" value={ownRail ? "yes" : "no"} onChange={(e) => setOwnRail(e.target.value === "yes")}>
+            <option value="no">No — cards only</option>
+            <option value="yes">Yes — live</option>
+          </Select>
+        </div>
       </div>
 
       {p ? (
         <section className="mt-10 border-t border-border pt-6">
-          <h2 className="receipt text-ink">Your current stack</h2>
+          <h2 className="font-display text-2xl">{status.title}</h2>
+          <h3 className="mt-6 receipt text-ink">Your current stack</h3>
           <dl className="mt-3 grid sm:grid-cols-2 gap-x-8">
             <Row k="Primary" v={p.name} />
-            <Row k="Backup card" v={backupCard?.name ?? "None"} warn={!backupCard} />
-            <Row k="Independent rail" v={bank?.name ?? "None"} warn={!bank} />
+            <Row k="Backup card" v={haveBackup?.name ?? "None"} warn={!haveBackup} />
+            <Row k="Independent rail" v={ownRail ? "Live" : "None"} warn={!ownRail} />
             <Row k="Subscriptions" v={subs} />
             <Row k="Token dependency" v={token} />
             <Row k="Blast radius" v={blast} />
@@ -82,10 +117,10 @@ function Escape() {
 
       {p ? (
         <section className="mt-10 border-t border-border pt-6">
-          <h2 className="receipt text-ink">Your escape hatch</h2>
+          <h2 className="receipt text-ink">{already ? "Keep it tested" : "Your escape hatch"}</h2>
           <ol className="mt-3 list-decimal pl-5 text-sm space-y-2 max-w-2xl">
             <li>
-              Add backup card processor
+              {haveBackup ? "Keep backup card processor live" : "Add backup card processor"}
               {backupCard ? (
                 <>
                   :{" "}
@@ -97,7 +132,7 @@ function Escape() {
               ) : null}
             </li>
             <li>
-              Add independent payment rail
+              {ownRail ? "Keep independent payment rail live" : "Add independent payment rail"}
               {bank ? (
                 <>
                   :{" "}
@@ -111,7 +146,9 @@ function Escape() {
             <li>Document settlement exposure — {p.ohShit.fundsHeld}</li>
             <li>Test backup checkout while this {p.name} account is healthy</li>
           </ol>
-          <p className="mt-4 font-mono text-[12px] text-ink-subtle">The worst time to build a fire escape is during the fire.</p>
+          <p className="mt-4 font-mono text-[12px] text-ink-subtle">
+            {already ? "Nothing dramatic here — just keep the backup tested." : "The worst time to build a fire escape is during the fire."}
+          </p>
         </section>
       ) : null}
 

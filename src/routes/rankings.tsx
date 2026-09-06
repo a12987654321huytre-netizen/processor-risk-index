@@ -197,9 +197,9 @@ function Rankings() {
           <option value="low">Low</option>
           <option value="guarded">Guarded</option>
           <option value="moderate">Moderate</option>
+          <option value="elevated">Elevated</option>
           <option value="high">High</option>
-          <option value="very-high">Very high</option>
-          <option value="extreme">Extreme</option>
+          <option value="severe">Severe</option>
         </Field>
         <Field id="confidence" label="Evidence confidence" value={search.confidence ?? "all"} onChange={(v) => set("confidence", v)}>
           <option value="all">Any</option>

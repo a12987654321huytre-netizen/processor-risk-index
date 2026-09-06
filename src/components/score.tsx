@@ -1,16 +1,16 @@
-import { bandFor, confidenceShort, flagLabel, type RiskBand } from "@/data/scoring";
+import { bandFor, confidenceShort, dimBand, flagLabel, type RiskBand } from "@/data/scoring";
 import type { FlagLevel } from "@/data/types";
 import { cn } from "@/lib/utils";
 
-export function bandTone(id: RiskBand["id"] | undefined): "low" | "guarded" | "moderate" | "high" | "very-high" | "extreme" {
-  return (id ?? "moderate") as "low" | "guarded" | "moderate" | "high" | "very-high" | "extreme";
+export function bandTone(id: RiskBand["id"] | undefined): RiskBand["id"] {
+  return id ?? "moderate";
 }
 
-const FLAG_TONE: Record<FlagLevel, "low" | "guarded" | "moderate" | "high" | "very-high"> = {
+const FLAG_TONE: Record<FlagLevel, RiskBand["id"]> = {
   low: "low",
-  moderate: "moderate",
-  high: "high",
-  "very-high": "very-high",
+  moderate: "guarded",
+  high: "elevated",
+  "very-high": "high",
   unknown: "guarded",
 };
 
@@ -42,16 +42,27 @@ export function bandClass(id: RiskBand["id"] | undefined): string {
       return "text-risk-guarded";
     case "moderate":
       return "text-risk-moderate";
+    case "elevated":
+      return "text-risk-elevated";
     case "high":
       return "text-risk-high";
-    case "very-high":
-      return "text-risk-very-high";
-    case "extreme":
-      return "text-risk-extreme";
+    case "severe":
+      return "text-risk-severe";
     default:
       return "text-ink";
   }
 }
+
+const BAND_BG: Record<string, string> = {
+  low: "bg-risk-low-bg text-risk-low",
+  guarded: "bg-risk-guarded-bg text-risk-guarded",
+  moderate: "bg-risk-moderate-bg text-risk-moderate",
+  elevated: "bg-risk-elevated-bg text-risk-elevated",
+  high: "bg-risk-high-bg text-risk-high",
+  severe: "bg-risk-severe-bg text-risk-severe",
+  "very-high": "bg-risk-very-high-bg text-risk-very-high",
+  extreme: "bg-risk-extreme-bg text-risk-extreme",
+};
 
 export function BandBadge({ score }: { score: number | null | undefined }) {
   if (score === null || score === undefined) {
@@ -59,21 +70,15 @@ export function BandBadge({ score }: { score: number | null | undefined }) {
   }
   const band = bandFor(score);
   if (!band) return null;
-  const bg: Record<string, string> = {
-    low: "bg-risk-low-bg text-risk-low",
-    guarded: "bg-risk-guarded-bg text-risk-guarded",
-    moderate: "bg-risk-moderate-bg text-risk-moderate",
-    high: "bg-risk-high-bg text-risk-high",
-    "very-high": "bg-risk-very-high-bg text-risk-very-high",
-    extreme: "bg-risk-extreme-bg text-risk-extreme",
-  };
   return (
-    <span className={cn("inline-flex items-center gap-2 rounded-sm px-2 py-1 text-xs font-medium", bg[band.id])}>
+    <span className={cn("inline-flex items-center gap-2 rounded-sm px-2 py-1 text-xs font-medium", BAND_BG[band.id])}>
       <span>{band.label}</span>
       <span className="opacity-80 font-normal">{band.cheeky}</span>
     </span>
   );
 }
+
+export { BAND_BG };
 
 export function ConfidenceBadge({ value }: { value: number }) {
   const c = confidenceShort(value);
@@ -94,15 +99,8 @@ export function ConfidenceBadge({ value }: { value: number }) {
 
 export function FlagChip({ label, level }: { label: string; level: FlagLevel }) {
   const tone = FLAG_TONE[level];
-  const bg: Record<string, string> = {
-    low: "bg-risk-low-bg text-risk-low",
-    guarded: "bg-risk-guarded-bg text-risk-guarded",
-    moderate: "bg-risk-moderate-bg text-risk-moderate",
-    high: "bg-risk-high-bg text-risk-high",
-    "very-high": "bg-risk-very-high-bg text-risk-very-high",
-  };
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs border border-border", bg[tone])}>
+    <span className={cn("inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs border border-border", BAND_BG[tone])}>
       <span className="text-ink-muted">{label}</span>
       <span className="font-medium">{flagLabel(level)}</span>
     </span>
@@ -115,11 +113,13 @@ export function ScoreBar({ value, max = 10, tone }: { value: number; max?: numbe
     low: "bg-risk-low",
     guarded: "bg-risk-guarded",
     moderate: "bg-risk-moderate",
+    elevated: "bg-risk-elevated",
     high: "bg-risk-high",
+    severe: "bg-risk-severe",
     "very-high": "bg-risk-very-high",
     extreme: "bg-risk-extreme",
   };
-  const id = tone ?? (value >= 8 ? "very-high" : value >= 6 ? "high" : value >= 4 ? "moderate" : "low");
+  const id = tone ?? (max === 10 ? dimBand(value).id : bandFor(value)?.id) ?? "moderate";
   return (
     <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden" aria-hidden="true">
       <div

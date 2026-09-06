@@ -3,7 +3,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { PROVIDERS, COUNTRIES } from "@/data";
 import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/input";
-import { BandBadge, ScoreNumber } from "@/components/score";
+import { ScoreNumber } from "@/components/score";
 import { evaluateCooked, type CookedInput } from "@/lib/cooked";
 
 const KEY = "pri-cooked";
@@ -63,7 +63,7 @@ function HowCooked() {
       <h1 className="mt-2 font-display text-4xl">How cooked are you?</h1>
       <p className="mt-3 max-w-2xl text-ink-muted">
         This is not a prediction. Provider risk is the dossier. Your exposure is how concentrated the setup is.
-        Do not use it to hide activity from compliance systems.
+        A good result is allowed. Do not use it to hide activity from compliance systems.
       </p>
 
       <form
@@ -244,14 +244,13 @@ function HowCooked() {
             <div>
               <p className="receipt">Your business exposure</p>
               <ScoreNumber value={result.exposure} size="lg" />
-              <div className="mt-2">
-                <BandBadge score={result.exposure} />
-              </div>
+              <p className="mt-2 text-xs uppercase tracking-wide font-medium">{result.bandLabel}</p>
+              <p className="mt-1 text-xs text-ink-subtle">{result.cheeky}</p>
             </div>
           </div>
           <p className="mt-6 font-display text-2xl max-w-xl">{result.signature}</p>
           <p className="mt-2 text-sm text-ink-muted">
-            Personalised from {result.processor.name}'s research, not a guarantee. {result.cheeky}
+            Personalised from {result.processor.name}'s research, not a guarantee.
           </p>
           <h2 className="mt-8 font-sans text-lg font-medium">What we notice</h2>
           <ul className="mt-3">

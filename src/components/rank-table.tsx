@@ -14,7 +14,9 @@ function ShortBand({ score }: { score: number }) {
     low: "bg-risk-low-bg text-risk-low",
     guarded: "bg-risk-guarded-bg text-risk-guarded",
     moderate: "bg-risk-moderate-bg text-risk-moderate",
+    elevated: "bg-risk-elevated-bg text-risk-elevated",
     high: "bg-risk-high-bg text-risk-high",
+    severe: "bg-risk-severe-bg text-risk-severe",
     "very-high": "bg-risk-very-high-bg text-risk-very-high",
     extreme: "bg-risk-extreme-bg text-risk-extreme",
   };

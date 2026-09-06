@@ -23,12 +23,12 @@ export const Route = createFileRoute("/methodology")({
 function Methodology() {
   return (
     <div className="page-wrap py-10 max-w-3xl">
-      <p className="text-xs uppercase tracking-[0.18em] text-accent font-medium">The boring bit that can bankrupt you</p>
+      <p className="text-xs uppercase tracking-[0.18em] text-accent font-medium">The boring bit, on purpose</p>
       <h1 className="mt-2 font-display text-4xl">Methodology</h1>
       <p className="mt-4 text-ink-muted">
         The index measures comparative merchant lockout exposure: how badly things can go if a processor decides it no
         longer likes an account. It is not a probability of suspension, a credit rating, an allegation of wrongdoing, or
-        a judgement of financial stability.
+        a judgement of financial stability. Band labels are presentation. The numeric scores did not change.
       </p>
 
       <h2 className="mt-10 font-display text-2xl">What it does not measure</h2>
