@@ -20,14 +20,13 @@ npm run dev
 
 ## EdgeOne Pages
 
-The one-click button above imports this repo into EdgeOne Pages.
-
-Manual settings if you import the Git repository yourself:
+Git-connected projects read `edgeone.json`. That file sets:
 
 | Setting | Value |
 | --- | --- |
 | Install command | `npm install` |
 | Build command | `npm run build:edgeone` |
 | Output directory | `.output/public` |
+| Node | 22.11.0 |
 
-`build:edgeone` produces a static SPA (client-side routing). `edgeone.json` rewrites unmatched paths to `index.html`.
+`npm run build` is the Vercel/SSR build and does **not** write a `dist/` folder. EdgeOne must use `build:edgeone`, which prerenders a static SPA into `.output/public` (and copies it to `dist/` as a fallback). `edgeone.json` also rewrites unmatched paths to `index.html`.
