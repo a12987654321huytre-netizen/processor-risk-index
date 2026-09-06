@@ -267,7 +267,7 @@ export const BATCH_B: Provider[] = [
       targetMerchant: "European card-present and ecom",
     },
     verdictShort:
-      "Nexi Germany’s card-acceptance terms allow paying only after chargeback windows and retaining trust-account amounts, with a long extraordinary-termination list (including chargebacks above 0.9% or €5,000/month). English-language merchant freeze reports are scarce. Italy uses an express termination clause for listed breaches.",
+      "Nexi Germany’s card-acceptance terms allow paying only after chargeback windows and retaining trust-account amounts, with a long extraordinary-termination list (including chargebacks above 0.9% or €5,000/month). The June 2026 Italian Regolamento Esercenti is the home-market paper: express termination for listed breaches (Art. 20), merchant exit anytime with no penalty, Nexi two months’ notice (Art. 21), and immediate suspend for insolvency, credit deterioration, protests or seizures (Art. 12). Italian merchant freeze write-ups are still scarce even on Italian sources — quiet is not ‘cannot withhold’. Complaints: 15 working days, then ABF.",
     cheekyLine: "Quiet because it is not a Twitter product — not because it cannot withhold.",
     whoFor: {
       bestFor: "EU merchants in Nexi’s home markets with a real acquiring contract.",
@@ -277,6 +277,10 @@ export const BATCH_B: Provider[] = [
     },
     contract: [
       ["funds-holds", "DE withhold / trust account", "May pay only after chargeback windows expire and retain Trust Account amounts for high complaints, suspected future CBs, bankruptcy, or information-duty failure.", "nexi-de", "DE"],
+      ["termination", "IT Art. 20 — clausola risolutiva espressa", "Nexi may declare the contract terminated under art. 1456 c.c. for listed merchant breaches, including AML 231/2007 duties. Written notice by recommended mail or equivalent.", "nexi-it-reg", "IT"],
+      ["termination", "IT Art. 21 — recesso", "Merchant may exit the whole contract at any time with no penalty. Nexi may exit with two months’ written notice.", "nexi-it-reg", "IT"],
+      ["suspension", "IT Art. 12 — sospensione immediata", "May suspend or limit the service immediately for insolvency, credit deterioration, protests, civil/criminal seizures, injunctions, or security — and in the Art. 20 termination cases.", "nexi-it-reg", "IT"],
+      ["appeal", "Reclami in 15 giorni lavorativi, poi ABF", "Merchant (esercente) complaints: form, PEC, email, recommended mail. Answer within 15 working days. Unanswered or rejected acquiring complaints may go to the Arbitro Bancario Finanziario.", "nexi-reclami", "IT"],
     ],
     triggers: [
       ["Chargebacks >0.9% or €5,000/month (DE terms).", "officially-documented", ["nexi-de"]],
@@ -296,8 +300,8 @@ export const BATCH_B: Provider[] = [
       ["worldline", "closest-replacement", "European acquiring group."],
       ["adyen", "enterprise", "Global API acquirer."],
     ],
-    complaintNote: "Sparse English-language merchant corpus. " + note,
-    sourceIds: ["nexi-de"],
+    complaintNote: "Italian T&Cs and the reclami/ABF path are now sourced. Public Italian merchant-freeze write-ups are still scarce. " + note,
+    sourceIds: ["nexi-de", "nexi-it-reg", "nexi-it-mps", "nexi-reclami"],
   }),
   compact({
     id: "nuvei",

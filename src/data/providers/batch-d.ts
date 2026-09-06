@@ -104,6 +104,13 @@ export const BATCH_D: Provider[] = [
         "payu-banned",
         "IN",
       ],
+      [
+        "funds-holds",
+        "LatAm 2024: withhold while the triggering scenario lasts",
+        "Nov 2024 LatAm T&Cs (newer than the 2020 EN PDF): may withhold Virtual Account funds and terminate for excessive chargebacks, insolvency signals, systematic non-delivery, rising complaints, or tax debt that could hit PayU. Withholding lasts as long as that scenario persists. Separate entity from PayU India.",
+        "payu-latam-2024",
+        "LATAM",
+      ],
     ],
     reportNotes: [
       ["shutdown", "Public shutdown reports", null, "India-startup forums discuss aggregator freezes; sample not counted as a rate."],
@@ -131,7 +138,7 @@ export const BATCH_D: Provider[] = [
       ["adyen", "enterprise", "If you are a cross-border enterprise, not an India SMB."],
     ],
     complaintNote: n,
-    sourceIds: ["payu-banned", "payu-claims", "payu-tnc", "payu-latam-tc"],
+    sourceIds: ["payu-banned", "payu-claims", "payu-tnc", "payu-latam-tc", "payu-latam-2024", "payu-tp-10lakh"],
     badges: { digitalGoods: "high", crossBorder: "high" },
   }),
   compact({
@@ -331,7 +338,7 @@ export const BATCH_D: Provider[] = [
       targetMerchant: "LatAm SMBs and Mercado Libre sellers",
     },
     verdictShort:
-      "Mercado Pago Brazil’s terms of use let it cancel or block payments and balances, and unilaterally suspend or close the account for T&Cs or regulation. For Mercado Libre sellers the checkout, the wallet and the marketplace are the same organism — a limitation is not ‘just payments’. Public hold durations vary by product (checkout vs credit vs wallet) and are not one number. Treat this as a platform-payments risk, not a vanilla acquirer.",
+      "Mercado Pago Brazil’s terms of use let it cancel or block payments and balances, and unilaterally suspend or close the account for T&Cs or regulation. Argentina’s T&Cs add KYC/PLD-FT suspension; Mexico’s Standard terms put unmatched funds in a Fondo de Reserva and block the account until a withdrawal path is set. For Mercado Libre sellers the checkout, the wallet and the marketplace are the same organism — a limitation is not ‘just payments’. Reclame Aqui is the real complaint corpus: company replies repeatedly name a delayed withdrawal date (~60 days from suspension) and a permanent block with no disclosed reason. That is a wallet-plus-PSP pattern, not a vanilla acquirer.",
     cheekyLine: "If the marketplace is also the bank, the argument is with the landlord.",
     whoFor: {
       bestFor: "LatAm SMBs already selling on Mercado Libre who will also take Pix elsewhere.",
@@ -346,6 +353,20 @@ export const BATCH_D: Provider[] = [
         "BR terms of use: payments and balances may be cancelled or blocked. Unilateral suspend/close for T&Cs or regulation.",
         "mp-br",
         "BR",
+      ],
+      [
+        "termination",
+        "AR: cancel or suspend for KYC / PLD-FT",
+        "Argentina T&Cs: refuse registration or cancel/suspend for inconsistent KYC, unusual or suspicious PLD/FT or fraud activity, or missing documents. Pending/held funds are not available credited money.",
+        "mp-ar-tc",
+        "AR",
+      ],
+      [
+        "reserves",
+        "MX: Fondo de Reserva on blocked Standard accounts",
+        "Mexico Standard terms: if the user does not designate a Wallet or associated withdrawal account, funds are held in a reserve fund and the account is blocked until regularised. The user cannot dispose of those funds in the meantime.",
+        "mp-mx-tc",
+        "MX",
       ],
     ],
     triggers: [
@@ -366,8 +387,17 @@ export const BATCH_D: Provider[] = [
       ["stone", "lower-lockout", "Acquirer with a bank relationship, still Brazilian collateral culture."],
       ["dlocal", "enterprise", "If you are a foreign brand collecting in, not a local seller."],
     ],
-    complaintNote: n,
-    sourceIds: ["mp-br", "mp-help-hold"],
+    complaintNote: "Portuguese Reclame Aqui is the complaint corpus, not English Reddit. Volume mixes consumer-wallet freezes with seller checkout — not a merchant-only rate. " + n,
+    sourceIds: [
+      "mp-br",
+      "mp-help-hold",
+      "mp-mx-tc",
+      "mp-ar-tc",
+      "mp-mx-retenido",
+      "mp-mx-suspend",
+      "mp-ra-60d",
+      "mp-ra-perm",
+    ],
     badges: { platformDependency: "very-high", crossBorder: "high" },
   }),
   compact({
@@ -600,8 +630,8 @@ export const BATCH_D: Provider[] = [
       ["phonepe", "easier-onboarding", "UPI-native. Hold terms are not softer."],
       ["stripe", "enterprise", "Stripe publishes India merchant onboarding — different product, still an aggregator."],
     ],
-    complaintNote: n,
-    sourceIds: ["razorpay-terms", "razorpay-reddit-120", "razorpay-reddit-settled"],
+    complaintNote: "Indian startup forums, Trustpilot and consumercomplaints.in were searched; 120-day withhold shows up in more than one channel. Restoration on day 14 also exists. " + n,
+    sourceIds: ["razorpay-terms", "razorpay-reddit-120", "razorpay-reddit-settled", "razorpay-prohibited", "razorpay-tp-restore", "razorpay-tp-120", "razorpay-cc-120", "razorpay-x-120", "razorpay-lea"],
     badges: { digitalGoods: "high", suddenGrowth: "high" },
   }),
   compact({

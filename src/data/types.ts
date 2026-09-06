@@ -90,9 +90,43 @@ export type SourceType =
   | "court"
   | "filing";
 export type TriggerEvidence = "officially-documented" | "strong-merchant-pattern" | "anecdotal" | "unknown";
-export type ResearchStatus = "complete" | "partial" | "pending";
+
+/** Published research status. Metadata only — every provider still receives a rank. */
+export type ResearchStatus = "verified" | "provisional" | "in-research" | "pending";
+export type ResearchTier = ResearchStatus;
 export type Trend = "rising" | "stable" | "declining" | "insufficient";
 export type YesNoVaries = boolean | "varies" | "unknown";
+
+export type SupportAccess =
+  | "24-7-phone-chat-email"
+  | "phone-available"
+  | "chat-email"
+  | "ticket-only"
+  | "account-manager-qualifying"
+  | "varies-by-plan"
+  | "unknown";
+
+export type EscalationQuality = "good" | "mixed" | "poor" | "insufficient-evidence";
+
+export type ConfidenceBand = "high" | "good" | "medium" | "low" | "very-low";
+export type ResearchDepthBand = "high" | "medium" | "low";
+export type IncidentStrength = "high" | "medium" | "low" | "anecdotal";
+
+export type AltKind =
+  | "closest-replacement"
+  | "lower-risk-escape"
+  | "lower-lockout"
+  | "diversify-rail"
+  | "independent-rail"
+  | "easier-onboarding"
+  | "enterprise-step-up"
+  | "enterprise"
+  | "merchant-of-record"
+  | "backup-not-replacement";
+
+export type InfraKind = "ownership" | "processing" | "acquiring" | "unknown";
+
+export type EligibilityCta = "eligible" | "likely-eligible" | "enterprise-required" | "not-available" | "unknown";
 
 export interface DimensionScores {
   /** 0–10. Higher = more lockout exposure. */
@@ -149,6 +183,8 @@ export interface OfficialFinding {
     | "verification"
     | "disputes"
     | "payouts"
+    | "support"
+    | "appeal"
     | "other";
   title: string;
   paraphrase: string;
@@ -169,10 +205,13 @@ export interface Incident {
   volume: string | null;
   transactionSize: string | null;
   merchantResponsibility: MerchantResponsibility;
-  evidenceStrength: "high" | "medium" | "low";
+  evidenceStrength: IncidentStrength;
   duplicateGroup: string | null;
   summary: string;
   label: EvidenceLabel;
+  trigger?: string | null;
+  processorExplanation?: string | null;
+  merchantExplanation?: string | null;
 }
 
 export interface ReportBucket {
@@ -198,14 +237,10 @@ export interface Trigger {
 
 export interface Alternative {
   providerId: string;
-  kind:
-    | "closest-replacement"
-    | "lower-lockout"
-    | "easier-onboarding"
-    | "independent-rail"
-    | "merchant-of-record"
-    | "enterprise";
+  kind: AltKind;
   why: string;
+  directional?: boolean;
+  riskDelta?: number | null;
 }
 
 export interface OhShitBox {
@@ -237,10 +272,66 @@ export interface Snapshot {
   reservesAllowed: YesNoVaries;
   terminationPowers: string;
   appealAvailable: YesNoVaries;
+  /** @deprecated Prefer supportAccess. Kept as a derived compatibility field. */
   humanSupport: YesNoVaries;
+  supportAccess?: SupportAccess;
+  escalationQuality?: EscalationQuality;
   isMoR: boolean;
   directAcquiring: YesNoVaries;
   targetMerchant: string;
+}
+
+export interface OfficialCoverage {
+  termination: boolean;
+  holdsReserves: boolean;
+  restricted: boolean;
+  payouts: boolean;
+  geography: boolean;
+  appealSupport: boolean;
+  officialSourceCount: number;
+  comprehensiveAgreement: boolean;
+  points: number;
+  missing: string[];
+}
+
+export interface ConfidenceBreakdown {
+  official: number;
+  independent: number;
+  recency: number;
+  jurisdiction: number;
+  diversity: number;
+  contradiction: number;
+  total: number;
+  band: ConfidenceBand;
+}
+
+export interface ResearchDepth {
+  officialSources: number;
+  independentReports: number;
+  jurisdictions: number;
+  incidents: number;
+  successfulResolutions: number;
+  lastVerified: string;
+  band: ResearchDepthBand;
+}
+
+export interface RubricPart {
+  id: string;
+  label: string;
+  score: number;
+  note: string;
+}
+
+export interface DimensionExplanation {
+  key: keyof DimensionScores;
+  score: number;
+  bandLabel: string;
+  bandText: string;
+  parts: RubricPart[];
+  official: { sourceId: string; title: string; finding: string }[];
+  merchant: { incidentId: string; summary: string; outcome: string }[];
+  counter: string[];
+  calculated: number;
 }
 
 export interface Provider {
@@ -277,8 +368,20 @@ export interface Provider {
   };
   dimensions: DimensionScores;
   scores: Scores;
+  /** Always published. Risk Index is not gated on research status. */
+  publishedOverall: number;
+  /** Always true. Kept so older call sites do not invent a second eligibility concept. */
+  rankEligible: boolean;
+  /** 1 through 50. Every canonical provider has a position. */
+  rank: number;
+  previousRank: number | null;
+  /** Positive = moved toward #1 (riskier or others dropped). */
+  rankDelta: number | null;
   confidence: number;
+  confidenceBreakdown: ConfidenceBreakdown;
   researchStatus: ResearchStatus;
+  researchDepth: ResearchDepth;
+  officialCoverage: OfficialCoverage;
   lastVerified: string;
   badges: RiskFlags;
   snapshot: Snapshot;
@@ -300,4 +403,6 @@ export interface Provider {
   complaintVolumeNormalised: boolean;
   complaintVolumeNote: string;
   sourceIds: string[];
+  dimensionExplanations: DimensionExplanation[];
+  structuralNote: string | null;
 }

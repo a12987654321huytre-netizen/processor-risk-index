@@ -51,7 +51,7 @@ export function SearchDialog({
             <li className="px-4 py-6 text-sm text-ink-muted">No processors match.</li>
           ) : (
             results.map((p) => {
-              const band = bandFor(p.scores.overall);
+              const band = bandFor(p.publishedOverall);
               return (
                 <li key={p.id}>
                   <button
@@ -62,9 +62,12 @@ export function SearchDialog({
                       void nav({ to: "/processor/$slug", params: { slug: p.slug } });
                     }}
                   >
+                    <span className="tabular text-xs text-ink-subtle w-6">#{p.rank}</span>
                     <span className="font-medium">{p.name}</span>
                     <span className="text-xs text-ink-subtle">{p.types[0]}</span>
-                    <span className={cn("ml-auto tabular text-sm", bandClass(band?.id))}>{p.scores.overall}</span>
+                    <span className={cn("ml-auto tabular text-sm", bandClass(band?.id))}>
+                      {p.publishedOverall}
+                    </span>
                   </button>
                 </li>
               );

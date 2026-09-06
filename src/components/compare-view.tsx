@@ -5,6 +5,7 @@ import { BandBadge, ScoreBar, ScoreNumber } from "@/components/score";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { infraWarnings } from "@/data";
+import { researchStatusLabel } from "@/data/eligibility";
 
 export function parseCompareSlugs(raw: string | undefined): string[] {
   if (!raw) return [];
@@ -94,10 +95,12 @@ export function CompareView({ ids }: { ids: string[] }) {
                 <td className="p-3 text-ink-subtle">Overall</td>
                 {selected.map((p) => (
                   <td key={p.id} className="p-3">
-                    <ScoreNumber value={p.scores.overall} size="sm" />
+                    <p className="text-xs text-ink-subtle">#{p.rank}</p>
+                    <ScoreNumber value={p.publishedOverall} size="sm" />
                     <div className="mt-1">
-                      <BandBadge score={p.scores.overall} />
+                      <BandBadge score={p.publishedOverall} />
                     </div>
+                    {p.structuralNote ? <p className="mt-2 text-xs text-ink-subtle">{p.structuralNote}</p> : null}
                   </td>
                 ))}
               </tr>
@@ -107,7 +110,9 @@ export function CompareView({ ids }: { ids: string[] }) {
                   {selected.map((p) => (
                     <td key={p.id} className="p-3">
                       <div className="flex items-center gap-2">
-                        <span className="tabular w-8">{p.dimensions[d.key].toFixed(1)}</span>
+                        <span className="tabular w-8">
+                          {p.dimensions[d.key] % 1 === 0 ? p.dimensions[d.key] : p.dimensions[d.key].toFixed(1)}
+                        </span>
                         <div className="flex-1">
                           <ScoreBar value={p.dimensions[d.key]} />
                         </div>
@@ -118,6 +123,7 @@ export function CompareView({ ids }: { ids: string[] }) {
               ))}
               {(
                 [
+                  ["Rank", (p: (typeof selected)[0]) => `#${p.rank}`],
                   ["Shutdown", (p: (typeof selected)[0]) => flagLabel(p.badges.shutdown)],
                   ["Funds hold", (p: (typeof selected)[0]) => flagLabel(p.badges.fundsHold)],
                   ["Reserve", (p: (typeof selected)[0]) => flagLabel(p.badges.reserve)],
@@ -128,6 +134,7 @@ export function CompareView({ ids }: { ids: string[] }) {
                   ["Type", (p: (typeof selected)[0]) => typeLabel(p.types[0] ?? "")],
                   ["Countries (sourced)", (p: (typeof selected)[0]) => p.merchantCountries.slice(0, 6).join(", ") || "See note"],
                   ["Confidence", (p: (typeof selected)[0]) => String(p.confidence)],
+                  ["Research", (p: (typeof selected)[0]) => researchStatusLabel(p.researchStatus)],
                 ] as const
               ).map(([label, fn]) => (
                 <tr key={label} className="border-b border-border last:border-0">

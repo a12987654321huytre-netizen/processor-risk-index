@@ -17,12 +17,19 @@ function About() {
         the friend who already learned this the expensive way.
       </p>
       <p className="mt-4 text-ink-muted">
-        v1 covers {PROVIDERS.length} globally significant processors with {SOURCES_ALL.length} cited sources. Last
-        research pass: {LAST_VERIFIED}. Merchant-country lists are sourced, never guessed. Where a complete official
-        list was not found, the dossier says so and confidence drops.
+        The larger category is payment-processor survivability. Rankings are the front door. The useful questions are:
+        how risky is the processor, how dependent are you, what happens if it disappears tomorrow, and what should sit
+        beside it.
       </p>
       <p className="mt-4 text-ink-muted">
-        The UI can be cheeky. The data cannot. We do not convert allegations into facts. We do not sell rankings.
+        v1 is the global top {PROVIDERS.length}: every provider is ranked. Currently {SOURCES_ALL.length} cited
+        sources. Last research pass: {LAST_VERIFIED}. Research status describes how strong the evidence is — it does
+        not decide whether a provider appears. Merchant-country lists are sourced, never guessed. Where a complete
+        official list was not found, the dossier says so and Evidence Confidence drops.
+      </p>
+      <p className="mt-4 text-ink-muted">
+        The UI can be cheeky. The data cannot. We do not convert allegations into facts. They can buy an ad. They cannot
+        buy a better score.
       </p>
       <ul className="mt-6 text-sm space-y-2">
         <li>

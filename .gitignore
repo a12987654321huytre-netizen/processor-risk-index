@@ -5,6 +5,8 @@ dist/
 .nitro/
 .tanstack/
 .grok/
+.edgeone/
+.project_id
 screenshots/
 artifacts/
 *.log

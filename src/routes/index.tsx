@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowRight, Search } from "lucide-react";
-import { PROVIDERS, filterProviders, searchProviders } from "@/data";
-import { safestFirst } from "@/data/scoring";
+import { PROVIDERS, RESEARCH_STATS, filterProviders, searchProviders } from "@/data";
+import { riskiestFirst, safestFirst } from "@/data/scoring";
 import { RankCards, RankTable } from "@/components/rank-table";
+import { ResearchTracker } from "@/components/research-tracker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SUBLINE, TAGLINE } from "@/lib/site";
+import { LAST_RECALCULATED, LAST_VERIFIED, SUBLINE, TAGLINE } from "@/lib/site";
 import { ScoreNumber } from "@/components/score";
 
 export const Route = createFileRoute("/")({
@@ -43,40 +44,44 @@ const VIEWS: { id: HomeView; label: string }[] = [
   { id: "enterprise", label: "Enterprise" },
 ];
 
-function sliceFor(view: HomeView) {
-  const complete = PROVIDERS.filter((p) => p.researchStatus !== "pending");
+function rowsFor(view: HomeView) {
   switch (view) {
     case "safest":
-      return safestFirst(complete).slice(0, 12);
+      return safestFirst(PROVIDERS);
     case "researched":
-      return [...complete].sort((a, b) => b.confidence - a.confidence).slice(0, 12);
+      return [...PROVIDERS].sort((a, b) => b.confidence - a.confidence || b.publishedOverall - a.publishedOverall);
     case "digital":
-      return filterProviders({ model: "digital-downloads", sort: "risk-desc" }).slice(0, 12);
+      return filterProviders({ model: "digital-downloads", sort: "risk-desc" });
     case "saas":
-      return filterProviders({ model: "saas", sort: "risk-desc" }).slice(0, 12);
+      return filterProviders({ model: "saas", sort: "risk-desc" });
     case "high-ticket":
-      return filterProviders({ model: "high-ticket", sort: "risk-desc" }).slice(0, 12);
+      return filterProviders({ model: "high-ticket", sort: "risk-desc" });
     case "smb":
-      return complete.filter((p) => p.focus !== "enterprise").sort((a, b) => b.scores.overall - a.scores.overall).slice(0, 12);
+      return [...PROVIDERS].filter((p) => p.focus !== "enterprise").sort((a, b) => b.publishedOverall - a.publishedOverall);
     case "enterprise":
-      return complete.filter((p) => p.focus !== "sme").sort((a, b) => b.scores.overall - a.scores.overall).slice(0, 12);
+      return [...PROVIDERS].filter((p) => p.focus !== "sme").sort((a, b) => b.publishedOverall - a.publishedOverall);
     default:
-      return [...complete].sort((a, b) => b.scores.overall - a.scores.overall).slice(0, 12);
+      return riskiestFirst(PROVIDERS);
   }
 }
 
 function Home() {
   const [view, setView] = useState<HomeView>("riskiest");
   const [q, setQ] = useState("");
-  const rows = useMemo(() => sliceFor(view), [view]);
+  const rows = useMemo(() => rowsFor(view), [view]);
   const hits = q.trim() ? searchProviders(q).slice(0, 6) : [];
 
   return (
     <div>
       <section className="page-wrap pt-8 pb-6 md:pt-16 md:pb-8">
-        <p className="text-xs uppercase tracking-[0.18em] text-accent font-medium">Independent research · {PROVIDERS.length} processors</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-accent font-medium">
+          {PROVIDERS.length} major payment providers. Ranked by lockout risk.
+        </p>
         <h1 className="mt-3 font-display text-3xl md:text-5xl max-w-3xl">{TAGLINE}</h1>
         <p className="mt-3 max-w-2xl text-ink-muted text-sm md:text-lg">{SUBLINE}</p>
+        <p className="mt-2 max-w-2xl text-sm text-ink-subtle">
+          Every provider receives a current Risk Index score. Evidence Confidence tells you how strongly the available research supports it.
+        </p>
         <form
           className="mt-6 max-w-xl"
           onSubmit={(e) => {
@@ -108,7 +113,7 @@ function Home() {
                     className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-surface"
                   >
                     <span>{p.name}</span>
-                    <ScoreNumber value={p.scores.overall} size="sm" />
+                    <ScoreNumber value={p.publishedOverall} size="sm" />
                   </Link>
                 </li>
               ))}
@@ -126,10 +131,13 @@ function Home() {
           </Button>
         </div>
         <p className="mt-4 text-sm text-ink-subtle">Because finding out after your payouts are frozen is a terrible research strategy.</p>
+        <div className="mt-6 max-w-xl">
+          <ResearchTracker />
+        </div>
       </section>
 
       <section className="page-wrap pb-12">
-        <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Homepage ranking views">
+        <div className="flex flex-wrap gap-2 mb-3" role="tablist" aria-label="Homepage ranking views">
           {VIEWS.map((v) => (
             <button
               key={v.id}
@@ -147,8 +155,14 @@ function Home() {
             </button>
           ))}
         </div>
+        <p className="text-sm text-ink-muted mb-4">
+          Showing {rows.length} of {RESEARCH_STATS.total}
+          {rows.length === RESEARCH_STATS.total ? ", #1 through #" + RESEARCH_STATS.total : ""}. {RESEARCH_STATS.highConfidence}{" "}
+          high-confidence · {RESEARCH_STATS.mediumConfidence} medium-confidence · {RESEARCH_STATS.lowConfidence} lower-confidence.
+          Higher = greater merchant lockout exposure. Not a probability of suspension.
+        </p>
         <div className="hidden md:block">
-          <RankTable rows={rows} compact />
+          <RankTable rows={rows} />
         </div>
         <RankCards rows={rows} />
         <p className="mt-3 text-xs text-ink-subtle">
@@ -160,7 +174,7 @@ function Home() {
         <HomeCard
           to="/how-cooked"
           title="How cooked are you?"
-          body="A short dependency check. The processor is only half the problem. The other half is that it is the only processor."
+          body="Provider risk is one number. Your exposure is another. 100% of revenue on one account is the scary bit."
         />
         <HomeCard
           to="/escape"
@@ -190,13 +204,13 @@ function Home() {
       <section className="page-wrap pb-16">
         <h2 className="font-display text-2xl">What this is not</h2>
         <ul className="mt-4 grid gap-3 md:grid-cols-2 text-sm text-ink-muted">
-          <li className="rounded-md border border-border bg-bg-elevated p-4">Not a fee comparison. Your 2.9% is not the scary part.</li>
-          <li className="rounded-md border border-border bg-bg-elevated p-4">Not an affiliate ranking. No processor buys a better score.</li>
+          <li className="rounded-md border border-border bg-bg-elevated p-4">Not a fee comparison. Your 2.9% is not the scary bit.</li>
+          <li className="rounded-md border border-border bg-bg-elevated p-4">Not an affiliate ranking. They can buy an ad. They cannot buy a better score.</li>
           <li className="rounded-md border border-border bg-bg-elevated p-4">Not a claim that Reddit is a court. Anecdotes are labelled. Contracts are cited.</li>
           <li className="rounded-md border border-border bg-bg-elevated p-4">Not legal advice. Read the agreement that actually governs your MID.</li>
         </ul>
         <p className="mt-6 text-sm">
-          Last verified 6 September 2026.{" "}
+          Last recalculated {LAST_RECALCULATED}. Last research pass {LAST_VERIFIED}.{" "}
           <Link to="/corrections" className="text-accent hover:underline">
             Think we got something wrong?
           </Link>

@@ -7,6 +7,7 @@ export const DISCLAIMER =
   "Processor Risk Index is an independent informational research project. Scores are comparative assessments based on publicly available policies, merchant reports and other cited evidence. They are not predictions that a provider will suspend any particular merchant and are not legal, financial or compliance advice. Provider policies vary by jurisdiction and can change. Always review the current agreement applicable to your account.";
 export const THEME_COLOR = "#f3efe6";
 export const LAST_VERIFIED = "6 September 2026";
+export const LAST_RECALCULATED = "6 September 2026";
 
 export const NAV = [
   { to: "/rankings", label: "Rankings" },

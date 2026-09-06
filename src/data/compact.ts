@@ -38,7 +38,7 @@ export interface CompactInput {
   supports: Provider["supports"];
   dimensions: DimensionScores;
   confidence: number;
-  researchStatus?: Provider["researchStatus"];
+  researchStatus?: Provider["researchStatus"] | "complete" | "partial" | "researched" | "unresearched";
   badges?: Partial<RiskFlags>;
   snapshot: Provider["snapshot"];
   verdictShort: string;
@@ -99,7 +99,7 @@ export function compact(c: CompactInput): Provider {
     supports: c.supports,
     dimensions: c.dimensions,
     confidence: c.confidence,
-    researchStatus: c.researchStatus ?? "complete",
+    researchStatus: c.researchStatus ?? "in-research",
     lastVerified: VERIFIED,
     badges: badgesFrom(c.dimensions, c.badges),
     snapshot: c.snapshot,

@@ -96,6 +96,12 @@ export const BATCH_E: Provider[] = [
         "Remaining collateral paid after liabilities are satisfied and approximately 180 days after termination.",
         "antom-collateral",
       ],
+      [
+        "reserves",
+        "Chinese 保证金 docs: same 180-day post-term hold",
+        "Antom Chinese collateral page (7 Jan 2026): after the acquiring contract ends, 固定保证金 is kept about 180 days to cover chargebacks/losses, then remainder returned. Confirms the English collateral clock; this is Antom/cross-border, not domestic mainland Alipay.",
+        "antom-collateral-zh",
+      ],
     ],
     triggers: [
       ["Product added to a later version of the restricted list.", "officially-documented", ["antom-restricted"]],
@@ -115,8 +121,8 @@ export const BATCH_E: Provider[] = [
       ["adyen", "enterprise", "Route Alipay as an APM so the merchant account is not Antom-only."],
       ["checkout", "enterprise", "Same idea: APM on a PSP you can replace."],
     ],
-    complaintNote: "English-language merchant-lockout sample is thin. " + n,
-    sourceIds: ["antom-restricted", "antom-collateral", "alipay-global"],
+    complaintNote: "Chinese Antom 保证金 docs match the English 180-day collateral clock. Independent mainland-merchant freeze write-ups did not surface as usable case studies. " + n,
+    sourceIds: ["antom-restricted", "antom-collateral", "alipay-global", "antom-collateral-zh", "antom-ams-tc"],
     badges: { platformDependency: "high", crossBorder: "very-high", appealFriction: "high" },
   }),
   compact({
@@ -146,15 +152,15 @@ export const BATCH_E: Provider[] = [
       holdsAllowed: true,
       reservesAllowed: "unknown",
       terminationPowers:
-        "Allow-list of permitted categories plus a long forbidden list. Disable payment permission for high-risk. English reserve/hold durations were not retrieved as a single numbered clause.",
-      appealAvailable: "unknown",
+        "Allow-list of permitted categories plus a long forbidden list. Disable payment permission for high-risk. Global FAQ: suspended settlement for high-risk (fraud/gambling), generally together with disabled payment. Domestic 违规规则 also names 暂时冻结结算 / 暂时关闭支付 / 解除主协议. No numbered 180-day clock retrieved.",
+      appealAvailable: true,
       humanSupport: "varies",
       isMoR: false,
       directAcquiring: false,
       targetMerchant: "China domestic and cross-border Weixin collecting",
     },
     verdictShort:
-      "Weixin Pay’s Proper Use Rules are an allow-list plus a long forbidden list — the opposite of a permissive aggregator AUP. Payment permission can be disabled for high-risk merchants. English-language hold/reserve durations were not retrieved as a clean numbered clause, so funds-hold is scored from architecture (closed-loop wallet) rather than a fake 180-day quote. Appeal friction is structurally high. Dependency is the point: WeChat is a platform, not a MID you port.",
+      "Weixin Pay’s Proper Use Rules are an allow-list plus a long forbidden list — the opposite of a permissive aggregator AUP. The Global risk-records FAQ now sources the missing hold tool: high-risk merchants (fraud, gambling, lewd content, outside approved scope) can have payment permission disabled and settlement suspended, usually together. Appeals currently go to wechatpayglobal@tencent.com with a 3–5 business-day result — not an in-dashboard button. Domestic 违规商户处理规则 names the same toolkit in Chinese (暂时冻结结算, 暂时关闭支付, 解除主协议). Still no numbered 180-day clock, so funds-hold is not faked as one. Dependency is the point: WeChat is a platform, not a MID you port.",
     cheekyLine: "It is not a processor. It is the room your customers already live in.",
     whoFor: {
       bestFor: "Brands that treat WeChat as a method on a PSP they control.",
@@ -170,6 +176,20 @@ export const BATCH_E: Provider[] = [
         "wechat-rules",
         "CN / cross-border",
       ],
+      [
+        "funds-holds",
+        "Suspended settlement for high-risk",
+        "Global FAQ: a freeze on settlement for high-risk merchants (e.g. suspected fraud or gambling), generally imposed together with disabled payment permission. Domestic 违规规则 names the same tool as 暂时冻结结算. Duration is not a published 180-day number.",
+        "wechat-risk-faq",
+        "CN / cross-border",
+      ],
+      [
+        "appeal",
+        "Email appeal, 3–5 business days (in-system closed)",
+        "Global: in-system appeal currently unavailable; email wechatpayglobal@tencent.com; result in 3–5 business days. Domestic 交易停滞 defaults: appeal via 商家助手 / merchant platform, result within 7 working days.",
+        "wechat-risk-faq",
+        "CN / cross-border",
+      ],
     ],
     triggers: [
       ["Category outside the allow-list; high-risk classification.", "officially-documented", ["wechat-rules"]],
@@ -179,7 +199,7 @@ export const BATCH_E: Provider[] = [
       paymentsContinue: "Weixin checkout dies. Alipay and cards may still run.",
       subscriptionsMigrate: "In-app WeChat subscriptions are not portable.",
       paymentDataPortable: "Very low.",
-      fundsHeld: "English numbered hold clause not retrieved. Assume wallet-typical collateral until sourced.",
+      fundsHeld: "Official tool is ‘suspended settlement’ / 暂时冻结结算. No numbered 180-day clock in the retrieved Global FAQ or domestic 违规规则.",
       migrationDifficulty: "Very high for mini-program native commerce.",
       emergencyAlternative: "Alipay as the other wallet, routed via a PSP.",
       longTermAlternative: "Never make a single China wallet the only inbound rail.",
@@ -189,8 +209,8 @@ export const BATCH_E: Provider[] = [
       ["adyen", "enterprise", "Route WeChat as an APM."],
       ["stripe", "enterprise", "Where Stripe actually offers WeChat as a method — still not merchant onboarding in CN."],
     ],
-    complaintNote: "English merchant-lockout sample is insufficient. " + n,
-    sourceIds: ["wechat-rules", "wechat-cross"],
+    complaintNote: "Chinese official rules and the Global FAQ are now sourced. Independent Chinese-forum lockout write-ups still did not surface as high-quality case studies. " + n,
+    sourceIds: ["wechat-rules", "wechat-cross", "wechat-violation-cn", "wechat-risk-faq", "wechat-stagnation"],
     badges: { platformDependency: "very-high", appealFriction: "very-high", digitalGoods: "high" },
   }),
   compact({

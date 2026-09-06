@@ -218,14 +218,14 @@ export const TOP10: Provider[] = [
       reservesAllowed: true,
       terminationPowers: "SSA §10: user can close anytime; Stripe may suspend immediately on listed risk/legal triggers and terminate.",
       appealAvailable: true,
-      humanSupport: false,
+      humanSupport: true,
       isMoR: false,
       directAcquiring: false,
       targetMerchant: "Online businesses that want an API, not a bank relationship",
     },
     verdict: {
       short:
-        "Stripe is exceptionally easy to start and unusually hard to argue with later. Instant onboarding plus a restricted-business list whose approval ‘may be modified or revoked at any time’ is the core lockout design. Reserves are documented (fixed and rolling; sole control; occasionally indefinite). Community reports cluster around sudden closures, 120-day post-termination holds, and email-only appeals — with a minority of reinstatements after escalation.",
+        "Stripe is exceptionally easy to start and unusually hard to argue with later. Instant onboarding plus a restricted-business list whose approval ‘may be modified or revoked at any time’ is the core lockout design. Reserves are documented (fixed and rolling; sole control; occasionally indefinite). All customers get 24×7 phone, email and chat — that is not the same as a useful lockout appeal. Community reports cluster around sudden closures and 120-day post-termination holds, with a minority of reinstatements after escalation.",
       cheekyLine: "Great product. Maybe don’t marry it.",
     },
     whoFor: {
@@ -353,6 +353,9 @@ export const TOP10: Provider[] = [
       "stripe-reddit-29k",
       "stripe-reddit-reinstated",
       "stripe-hn-018",
+      "stripe-support-plans",
+      "stripe-reddit-120d-uk",
+      "stripe-reddit-won-disputes",
     ],
   }),
 ];

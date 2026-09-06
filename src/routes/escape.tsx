@@ -19,10 +19,19 @@ function Escape() {
   const p = getProvider(primary);
   const matches = useMemo(() => (p ? matchAlternatives(p) : []), [p]);
 
+  const independentOf = (id?: string) => {
+    if (!id) return true;
+    return infraWarnings([primary, id]).length === 0;
+  };
+
   const backupCard =
-    matches.find((m) => !m.provider.isMoR && m.provider.types.some((t) => t === "psp" || t === "direct-acquirer" || t === "payment-aggregator"))?.provider ??
-    matches[0]?.provider;
-  const bank = PROVIDERS.find((x) => x.types.includes("pay-by-bank") && x.id !== primary);
+    matches.find(
+      (m) =>
+        independentOf(m.provider.id) &&
+        !m.provider.isMoR &&
+        m.provider.types.some((t) => t === "psp" || t === "direct-acquirer" || t === "payment-aggregator" || t === "merchant-account-provider"),
+    )?.provider ?? matches.find((m) => independentOf(m.provider.id))?.provider;
+  const bank = PROVIDERS.find((x) => x.types.includes("pay-by-bank") && x.id !== primary && independentOf(x.id));
   const wallet = PROVIDERS.find((x) => x.types.includes("wallet") && x.id !== primary && x.id !== backupCard?.id);
   const mor = PROVIDERS.find((x) => x.isMoR && x.id !== primary);
 
@@ -39,8 +48,8 @@ function Escape() {
       <p className="text-xs uppercase tracking-[0.18em] text-accent font-medium">The emergency exit</p>
       <h1 className="mt-2 font-display text-4xl">Build your escape hatch</h1>
       <p className="mt-3 max-w-2xl text-ink-muted">
-        Backup processor: cheaper than a nervous breakdown. Pick a primary. We suggest a stack and flag when two “different”
-        logos share infrastructure.
+        If this processor vanished tomorrow, what would you do? Backup processor: cheaper than a nervous breakdown. We
+        flag when two “different” logos share infrastructure.
       </p>
 
       <div className="mt-8 max-w-md">
@@ -55,12 +64,20 @@ function Escape() {
       </div>
 
       {p ? (
+        <p className="mt-6 max-w-2xl text-sm text-ink-muted">
+          First action: integrate the backup while your {p.name} account is healthy. The worst time to build a fire
+          escape is during the fire. Subscriptions on this stack: {p.ohShit.subscriptionsMigrate} Token portability:{" "}
+          {p.ohShit.paymentDataPortable}
+        </p>
+      ) : null}
+
+      {p ? (
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <Card
             kicker="Primary card rail"
             name={p.name}
             slug={p.slug}
-            score={p.scores.overall}
+            score={p.publishedOverall}
             note={p.isMoR ? "This primary is a Merchant of Record. Cards here are not ‘your’ MID." : p.acquiringModel}
             independent
           />
@@ -68,7 +85,7 @@ function Escape() {
             kicker="Backup card processor"
             name={backupCard?.name ?? "Add a second PSP"}
             slug={backupCard?.slug}
-            score={backupCard?.scores.overall}
+            score={backupCard?.publishedOverall}
             note={
               backupCard
                 ? independent(primary, backupCard.id)
@@ -82,7 +99,7 @@ function Escape() {
             kicker="Independent bank-payment rail"
             name={bank?.name ?? "GoCardless / Trustly / local bank"}
             slug={bank?.slug}
-            score={bank?.scores.overall}
+            score={bank?.publishedOverall}
             note="Cards and bank debit fail for different reasons. That is the point."
             independent={bank ? independent(primary, bank.id) : true}
           />
@@ -90,7 +107,7 @@ function Escape() {
             kicker="Optional wallet"
             name={wallet?.name ?? "Wallet sidecar"}
             slug={wallet?.slug}
-            score={wallet?.scores.overall}
+            score={wallet?.publishedOverall}
             note="A wallet is a method, not a treasury. Do not park operating cash there."
             independent={wallet ? independent(primary, wallet.id) : true}
           />
@@ -98,7 +115,7 @@ function Escape() {
             kicker="Optional Merchant of Record"
             name={mor?.name ?? "MoR for tax-heavy geos only"}
             slug={mor?.slug}
-            score={mor?.scores.overall}
+            score={mor?.publishedOverall}
             note="Use MoR where tax/VAT handling is the job, not as 100% of billing."
             independent={mor ? independent(primary, mor.id) : true}
           />
@@ -142,7 +159,7 @@ function Card({
   kicker: string;
   name: string;
   slug?: string;
-  score?: number;
+  score?: number | null;
   note: string;
   independent: boolean;
 }) {
@@ -150,7 +167,7 @@ function Card({
     <>
       <p className="text-xs uppercase tracking-wide text-ink-subtle">{kicker}</p>
       <p className="mt-1 font-medium text-lg">{name}</p>
-      {typeof score === "number" ? (
+      {score !== undefined ? (
         <div className="mt-1">
           <ScoreNumber value={score} size="sm" />
         </div>

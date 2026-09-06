@@ -18,7 +18,7 @@ export const Route = createFileRoute("/processor/$slug")({
       {
         name: "description",
         content: loaderData
-          ? `${loaderData.provider.name} lockout risk ${loaderData.provider.scores.overall}/100. ${loaderData.provider.verdict.short.slice(0, 140)}`
+          ? `${loaderData.provider.name} lockout risk ${loaderData.provider.publishedOverall} (#${loaderData.provider.rank} of 50). ${loaderData.provider.verdict.short.slice(0, 140)}`
           : "Processor dossier",
       },
     ],

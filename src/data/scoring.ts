@@ -54,10 +54,19 @@ export function bandFor(score: number | null): RiskBand | null {
   return RISK_BANDS.find((b) => score >= b.min && score <= b.max) ?? RISK_BANDS[RISK_BANDS.length - 1];
 }
 
-export function confidenceLabel(n: number): { label: string; tone: "high" | "medium" | "low" } {
-  if (n >= 70) return { label: "High confidence", tone: "high" };
-  if (n >= 45) return { label: "Medium confidence", tone: "medium" };
-  return { label: "Low confidence", tone: "low" };
+export function confidenceLabel(n: number): { label: string; tone: "high" | "medium" | "low"; band: "high" | "good" | "medium" | "low" | "very-low" } {
+  if (n >= 85) return { label: "High confidence", tone: "high", band: "high" };
+  if (n >= 70) return { label: "High confidence", tone: "high", band: "good" };
+  if (n >= 50) return { label: "Medium confidence", tone: "medium", band: "medium" };
+  if (n >= 30) return { label: "Low confidence", tone: "low", band: "low" };
+  return { label: "Low confidence", tone: "low", band: "very-low" };
+}
+
+/** Public three-band confidence used on the leaderboard. */
+export function confidenceShort(n: number): { label: "High" | "Medium" | "Low"; tone: "high" | "medium" | "low" } {
+  if (n >= 70) return { label: "High", tone: "high" };
+  if (n >= 50) return { label: "Medium", tone: "medium" };
+  return { label: "Low", tone: "low" };
 }
 
 export function flagFromScore(n: number): FlagLevel {
@@ -133,17 +142,28 @@ export const DIMENSION_META: {
 ];
 
 export function rankProviders(providers: Provider[]): Provider[] {
-  return [...providers].sort((a, b) => {
-    if (a.researchStatus === "pending" && b.researchStatus !== "pending") return 1;
-    if (b.researchStatus === "pending" && a.researchStatus !== "pending") return -1;
-    return b.scores.overall - a.scores.overall || a.name.localeCompare(b.name);
-  });
+  return [...providers].sort(
+    (a, b) =>
+      (b.publishedOverall ?? b.scores.overall) - (a.publishedOverall ?? a.scores.overall) ||
+      b.confidence - a.confidence ||
+      a.name.localeCompare(b.name),
+  );
 }
 
 export function safestFirst(providers: Provider[]): Provider[] {
-  return [...providers]
-    .filter((p) => p.researchStatus !== "pending")
-    .sort((a, b) => a.scores.overall - b.scores.overall || a.name.localeCompare(b.name));
+  return [...providers].sort(
+    (a, b) =>
+      (a.publishedOverall ?? a.scores.overall) - (b.publishedOverall ?? b.scores.overall) ||
+      a.name.localeCompare(b.name),
+  );
+}
+
+export function riskiestFirst(providers: Provider[]): Provider[] {
+  return [...providers].sort(
+    (a, b) =>
+      (b.publishedOverall ?? b.scores.overall) - (a.publishedOverall ?? a.scores.overall) ||
+      a.name.localeCompare(b.name),
+  );
 }
 
 export function typeLabel(t: string): string {

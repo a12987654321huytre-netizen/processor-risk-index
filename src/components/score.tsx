@@ -1,4 +1,4 @@
-import { bandFor, confidenceLabel, flagLabel, type RiskBand } from "@/data/scoring";
+import { bandFor, confidenceShort, flagLabel, type RiskBand } from "@/data/scoring";
 import type { FlagLevel } from "@/data/types";
 import { cn } from "@/lib/utils";
 
@@ -18,9 +18,12 @@ export function ScoreNumber({
   value,
   size = "md",
 }: {
-  value: number;
+  value: number | null | undefined;
   size?: "sm" | "md" | "lg";
 }) {
+  if (value === null || value === undefined) {
+    return <span className="text-sm text-ink-subtle font-sans">—</span>;
+  }
   const band = bandFor(value);
   const sizes = { sm: "text-lg", md: "text-3xl", lg: "text-5xl" };
   return (
@@ -50,7 +53,10 @@ export function bandClass(id: RiskBand["id"] | undefined): string {
   }
 }
 
-export function BandBadge({ score }: { score: number }) {
+export function BandBadge({ score }: { score: number | null | undefined }) {
+  if (score === null || score === undefined) {
+    return null;
+  }
   const band = bandFor(score);
   if (!band) return null;
   const bg: Record<string, string> = {
@@ -70,12 +76,18 @@ export function BandBadge({ score }: { score: number }) {
 }
 
 export function ConfidenceBadge({ value }: { value: number }) {
-  const c = confidenceLabel(value);
+  const c = confidenceShort(value);
   const tone =
     c.tone === "high" ? "bg-risk-low-bg text-risk-low" : c.tone === "medium" ? "bg-risk-moderate-bg text-risk-moderate" : "bg-risk-high-bg text-risk-high";
+  const title =
+    c.tone === "low"
+      ? "This ranking is based on incomplete evidence and may change materially as additional research is added."
+      : c.tone === "medium"
+        ? "A usable evidence-based assessment; important research gaps remain."
+        : "Unusually strong evidence supporting this assessment.";
   return (
-    <span className={cn("inline-flex rounded-sm px-2 py-1 text-xs font-medium", tone)}>
-      {c.label} · {value}
+    <span className={cn("inline-flex rounded-sm px-2 py-1 text-xs font-medium", tone)} title={title}>
+      {value} · {c.label}
     </span>
   );
 }

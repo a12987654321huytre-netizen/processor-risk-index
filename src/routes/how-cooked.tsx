@@ -24,13 +24,15 @@ const empty: CookedInput = {
   subscription: false,
   crossBorder: false,
   backupId: "",
+  revenueShare: "all",
+  cashBuffer: "1-3m",
 };
 
 export const Route = createFileRoute("/how-cooked")({
   head: () => ({
     meta: [
       { title: "How cooked are you? — Processor Risk Index" },
-      { name: "description", content: "A dependency check: processor risk times how much of the business sits on one account." },
+      { name: "description", content: "A dependency check: provider risk versus how badly this particular business would be hit." },
     ],
   }),
   component: HowCooked,
@@ -59,7 +61,7 @@ function HowCooked() {
       <p className="text-xs uppercase tracking-[0.18em] text-accent font-medium">Dependency check</p>
       <h1 className="mt-2 font-display text-4xl">How cooked are you?</h1>
       <p className="mt-3 max-w-2xl text-ink-muted">
-        This is not a prediction. It combines the processor’s published index with how concentrated your setup looks.
+        This is not a prediction. Provider risk is the dossier. Your exposure is how concentrated the setup is.
         Do not use it to hide activity from compliance systems.
       </p>
 
@@ -186,6 +188,21 @@ function HowCooked() {
             <option value="yes">Material cross-border</option>
           </Select>
         </Field>
+        <Field label="Share of revenue on this processor" htmlFor="rev">
+          <Select id="rev" value={form.revenueShare} onChange={(e) => set("revenueShare", e.target.value as CookedInput["revenueShare"])}>
+            <option value="all">All of it</option>
+            <option value="most">Most of it</option>
+            <option value="half">About half</option>
+            <option value="minor">A minor rail</option>
+          </Select>
+        </Field>
+        <Field label="Operating cash outside the processor" htmlFor="cash">
+          <Select id="cash" value={form.cashBuffer} onChange={(e) => set("cashBuffer", e.target.value as CookedInput["cashBuffer"])}>
+            <option value="under-1m">Under 1 month</option>
+            <option value="1-3m">1–3 months</option>
+            <option value="over-3m">Over 3 months</option>
+          </Select>
+        </Field>
         <Field label="Backup processor connected?" htmlFor="bak">
           <Select id="bak" value={form.backupId} onChange={(e) => set("backupId", e.target.value)}>
             <option value="">None</option>
@@ -203,13 +220,23 @@ function HowCooked() {
 
       {result ? (
         <section className="mt-10 rounded-lg border border-border bg-bg-elevated p-5">
-          <p className="text-xs uppercase tracking-wide text-ink-subtle">Your dependency risk</p>
-          <ScoreNumber value={result.score} size="lg" />
-          <div className="mt-2">
-            <BandBadge score={result.score} />
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-subtle">Provider risk</p>
+              <ScoreNumber value={result.providerRisk} size="md" />
+              <p className="mt-1 text-xs text-ink-subtle">The dossier. How intervention-prone {result.processor.name} looks.</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-subtle">Your business exposure</p>
+              <ScoreNumber value={result.exposure} size="lg" />
+              <div className="mt-2">
+                <BandBadge score={result.exposure} />
+              </div>
+            </div>
           </div>
-          <p className="mt-3 text-sm text-ink-muted">
-            Personalised from {result.processor.name}’s index, not a guarantee. {result.cheeky}
+          <p className="mt-4 font-display text-xl">{result.signature}</p>
+          <p className="mt-2 text-sm text-ink-muted">
+            Personalised from {result.processor.name}’s research, not a guarantee. {result.cheeky}
           </p>
           <h2 className="mt-6 font-display text-2xl">What we notice</h2>
           <ul className="mt-3 grid gap-2">
@@ -227,7 +254,7 @@ function HowCooked() {
           </ol>
           <p className="mt-6">
             <Link to="/escape" className="text-accent hover:underline">
-              Build an escape hatch
+              Create an escape plan
             </Link>
             {" · "}
             <Link to="/processor/$slug" params={{ slug: result.processor.slug }} className="text-accent hover:underline">

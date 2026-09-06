@@ -17,13 +17,18 @@ export type CookedInput = {
   fulfilment: "immediate" | "under-7d" | "over-7d";
   subscription: boolean;
   crossBorder: boolean;
-  backupId: string; // "" or processor id
+  backupId: string;
+  revenueShare: "all" | "most" | "half" | "minor";
+  cashBuffer: "under-1m" | "1-3m" | "over-3m";
 };
 
 export type CookedResult = {
+  providerRisk: number;
+  exposure: number;
   score: number;
   bandLabel: string;
   cheeky: string;
+  signature: string;
   observations: string[];
   fixes: string[];
   processor: Provider;
@@ -32,70 +37,95 @@ export type CookedResult = {
 export function evaluateCooked(input: CookedInput): CookedResult | null {
   const p = getProvider(input.processorId);
   if (!p) return null;
-  let score = p.scores.overall;
+  const providerRisk = p.publishedOverall;
+  let exposure = providerRisk;
   const observations: string[] = [];
   const fixes: string[] = [];
 
   observations.push(
-    `${p.name} scores ${p.scores.overall} on the lockout index (${bandFor(p.scores.overall)?.label ?? "n/a"}). That is the processor. The rest is how you use it.`,
+    `Provider risk: ${providerRisk}/100 (${bandFor(providerRisk)?.label ?? "n/a"}, #${p.rank} of 50). That is the processor. Your exposure is how much of the business sits on it. Evidence confidence ${p.confidence}/100 (${p.researchStatus}).`,
   );
 
+  if (input.revenueShare === "all") {
+    exposure += 18;
+    observations.push("100% of revenue through one provider. The processor isn’t the scariest part. Your dependency is.");
+    fixes.push("Move a slice of new volume to a second live processor while this account is healthy.");
+  } else if (input.revenueShare === "most") {
+    exposure += 10;
+    observations.push("Most revenue on one account. A payout pause still hits payroll.");
+  } else if (input.revenueShare === "half") {
+    exposure += 4;
+  } else {
+    observations.push("Minor share on this processor. Blast radius is smaller — still check token portability.");
+  }
+
   if (!input.backupId) {
-    score += 12;
-    observations.push(
-      `No backup processor is connected. ${p.name} is not the entire problem — 100% of revenue through one account is.`,
-    );
+    exposure += 12;
+    observations.push(`No backup processor is connected. ${p.name} is not the entire problem — one account is.`);
     fixes.push("Connect a backup card processor while this account is healthy.");
   } else {
     const b = getProvider(input.backupId);
     const warn = infraWarnings([p.id, input.backupId]);
     if (warn.length) {
-      score += 8;
+      exposure += 10;
       observations.push(warn[0].warning);
-      fixes.push("Pick a backup that is not the same underlying family (Stripe/Shopify/Lemon, PayPal/Braintree, Elavon/Helcim, Mollie/GoCardless).");
+      observations.push("These aren’t as independent as they look.");
+      fixes.push("Pick a backup that is not the same underlying family.");
     } else if (b) {
-      observations.push(`Backup on file: ${b.name} (index ${b.scores.overall}). Confirm it is actually live, not a half-finished signup.`);
+      observations.push(
+        `Backup on file: ${b.name} (index ${b.publishedOverall}, #${b.rank}). Confirm it is actually live, not a half-finished signup.`,
+      );
     }
   }
 
+  if (input.cashBuffer === "under-1m") {
+    exposure += 8;
+    observations.push("Under a month of operating cash outside the processor. A 120-day hold is then existential.");
+    fixes.push("Hold operating cash outside the processor so a payout pause is not the whole company.");
+  } else if (input.cashBuffer === "1-3m") {
+    exposure += 3;
+  }
+
   if (input.product === "digital" && (p.badges.digitalGoods === "high" || p.badges.digitalGoods === "very-high")) {
-    score += 6;
+    exposure += 6;
     observations.push("Digital goods on a processor with elevated digital-goods sensitivity. Delivery logs matter more than your refund policy blog post.");
     fixes.push("Keep download/login/fulfilment evidence. Match the catalogue you described at onboarding.");
   }
 
-  if ((input.aov === "1k-5k" || input.aov === "over-5k" || input.largest === "2k-10k" || input.largest === "over-10k") &&
-      (p.badges.highTicket === "high" || p.badges.highTicket === "very-high" || p.dimensions.underwriting >= 6)) {
-    score += 5;
+  if (
+    (input.aov === "1k-5k" || input.aov === "over-5k" || input.largest === "2k-10k" || input.largest === "over-10k") &&
+    (p.badges.highTicket === "high" || p.badges.highTicket === "very-high" || p.dimensions.underwriting >= 6)
+  ) {
+    exposure += 5;
     observations.push("High-ticket or large single charges on an account with elevated underwriting/high-ticket flags.");
     fixes.push("Tell the processor before unusual tickets. Do not land the first $10k charge on a quiet MID.");
   }
 
   if (input.accountAge === "under-3m" && (input.volume === "50k-250k" || input.volume === "250k-1m" || input.volume === "over-1m" || input.growth === "spike")) {
-    score += 7;
+    exposure += 7;
     observations.push("New account plus meaningful volume or a spike is the classic post-onboarding review pattern.");
     fixes.push("Ramp volume in line with the description you gave underwriting. Keep cash outside the processor.");
   } else if (input.growth === "spike") {
-    score += 4;
+    exposure += 4;
     observations.push("Sudden growth is a documented review trigger on several aggregator help centres.");
   }
 
   if (input.subscription && p.isMoR) {
-    score += 6;
+    exposure += 6;
     observations.push("Subscriptions on a Merchant of Record. Customers contracted with them. A shutdown is a re-sale, not an export.");
     fixes.push("Run a share of new checkouts on a direct (non-MoR) processor.");
   } else if (input.subscription && p.dimensions.dependency >= 6) {
-    score += 3;
+    exposure += 3;
     observations.push("Recurring billing plus elevated platform dependency. Ask, in writing, whether tokens can leave.");
   }
 
   if (input.crossBorder && (p.badges.crossBorder === "high" || p.badges.crossBorder === "very-high")) {
-    score += 3;
+    exposure += 3;
     observations.push("Cross-border collecting on a processor where corridor complexity is part of the dossier.");
   }
 
   if (input.country && p.merchantCountries.length && !p.merchantCountries.includes(input.country)) {
-    score += 4;
+    exposure += 4;
     observations.push(
       `${input.country} is not in the sourced merchant-country list for ${p.name}. Confirm onboarding on the provider’s own country page — PRI does not guess availability.`,
     );
@@ -103,13 +133,13 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
   }
 
   if (input.chargebacks === "over-1") {
-    score += 6;
+    exposure += 6;
     observations.push("Chargeback rate above 1% is inside several processors’ documented intervention territory.");
     fixes.push("Fix descriptor, fulfilment and refunds before the processor does it with a reserve.");
   }
 
   if (input.fulfilment === "over-7d") {
-    score += 3;
+    exposure += 3;
     observations.push("Delayed fulfilment looks like uncompleted-order exposure. Some aggregators restrict future-dated business.");
   }
 
@@ -118,16 +148,26 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
     fixes.push("Hold operating cash outside the processor so a payout pause is not existential.");
   }
 
-  score = Math.max(0, Math.min(100, Math.round(score)));
-  const band = bandFor(score);
+  exposure = Math.max(0, Math.min(100, Math.round(exposure)));
+  const band = bandFor(exposure);
   const uniqFixes = [...new Set(fixes)].slice(0, 6);
   if (!uniqFixes.some((f) => /backup/i.test(f))) uniqFixes.unshift("Keep a second live processor and a bank-payment rail that is not the same company.");
   uniqFixes.push("Keep KYC documents current. Do not hide activity from compliance systems.");
 
+  const signature =
+    input.revenueShare === "all" && !input.backupId
+      ? "The processor isn’t the scariest part. Your dependency is."
+      : exposure >= 75
+        ? "You’re pretty cooked."
+        : "Backup processor: cheaper than a nervous breakdown.";
+
   return {
-    score,
+    providerRisk,
+    exposure,
+    score: exposure,
     bandLabel: band?.label ?? "Moderate",
     cheeky: band?.cheeky ?? "Have a backup",
+    signature,
     observations: observations.slice(0, 8),
     fixes: uniqFixes.slice(0, 6),
     processor: p,
