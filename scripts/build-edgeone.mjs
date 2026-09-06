@@ -7,10 +7,17 @@
  * Also copies that folder to dist/ so a dashboard still pointed at "dist"
  * does not fail the Git build.
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, rmSync } from "node:fs";
 
 process.env.EDGEONE = "1";
+process.env.npm_config_engine_strict = "false";
+
+const ensure = spawnSync(process.execPath, ["scripts/ensure-native-bindings.mjs"], {
+  stdio: "inherit",
+  env: process.env,
+});
+if ((ensure.status ?? 1) !== 0) process.exit(ensure.status ?? 1);
 
 const child = spawn("node", ["scripts/with-app-env.mjs", "vite", "build"], {
   stdio: "inherit",

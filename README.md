@@ -4,7 +4,7 @@ Independent research on payment-processor lockout risk: shutdowns, funds holds, 
 
 This is not a fee comparison. Higher scores mean more merchant-dependency exposure, not a prediction that anyone will get shut down.
 
-[![Use EdgeOne Pages to deploy](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?repository-url=https%3A%2F%2Fgithub.com%2Fa12987654321huytre-netizen%2Fprocessor-risk-index&project-name=processor-risk-index&install-command=npm%20install&build-command=npm%20run%20build%3Aedgeone&output-directory=dist)
+[![Use EdgeOne Pages to deploy](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?repository-url=https%3A%2F%2Fgithub.com%2Fa12987654321huytre-netizen%2Fprocessor-risk-index&project-name=processor-risk-index&install-command=npm%20install%20--no-engine-strict%20--include%3Doptional%20--include%3Ddev&build-command=npm%20run%20build%3Aedgeone&output-directory=dist)
 
 ## Stack
 
@@ -24,9 +24,11 @@ Git-connected projects read `edgeone.json`. That file sets:
 
 | Setting | Value |
 | --- | --- |
-| Install command | `npm install` |
+| Install command | `npm install --no-engine-strict --include=optional --include=dev` |
 | Build command | `npm run build:edgeone` |
 | Output directory | `dist` |
 | Node | 22.11.0 |
+
+EdgeOne's Git image is Node 22.11. Vite 8's Rolldown binary is an optional dependency that asks for 22.12, so a plain `npm install` skips it. The install command and `scripts/ensure-native-bindings.mjs` put `@rolldown/binding-linux-x64-gnu` on disk before the build.
 
 `npm run build` is the Vercel/SSR build on Grok. On EdgeOne Git CI it switches to the static SPA build. `build:edgeone` prerenders into `.output/public` and copies that to `dist/` so the Git builder always finds an `index.html`. `edgeone.json` also rewrites unmatched paths to `index.html`.

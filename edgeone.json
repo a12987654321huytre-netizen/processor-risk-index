@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install",
+  "installCommand": "npm install --no-engine-strict --include=optional --include=dev",
   "buildCommand": "npm run build:edgeone",
   "outputDirectory": "dist",
   "nodeVersion": "22.11.0",
