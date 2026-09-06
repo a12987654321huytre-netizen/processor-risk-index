@@ -1,0 +1,216 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { ArrowRight, Search } from "lucide-react";
+import { PROVIDERS, filterProviders, searchProviders } from "@/data";
+import { safestFirst } from "@/data/scoring";
+import { RankCards, RankTable } from "@/components/rank-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SUBLINE, TAGLINE } from "@/lib/site";
+import { ScoreNumber } from "@/components/score";
+
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Processor Risk Index — payment lockout research" },
+      {
+        name: "description",
+        content: "Compare the world’s biggest payment processors by shutdown risk, funds-hold risk, reserve policies, support quality and how difficult it is to escape.",
+      },
+    ],
+  }),
+  component: Home,
+});
+
+type HomeView =
+  | "riskiest"
+  | "safest"
+  | "researched"
+  | "digital"
+  | "saas"
+  | "high-ticket"
+  | "smb"
+  | "enterprise";
+
+const VIEWS: { id: HomeView; label: string }[] = [
+  { id: "riskiest", label: "Riskiest" },
+  { id: "safest", label: "Safest" },
+  { id: "researched", label: "Most researched" },
+  { id: "digital", label: "Digital products" },
+  { id: "saas", label: "SaaS" },
+  { id: "high-ticket", label: "High ticket" },
+  { id: "smb", label: "SMBs" },
+  { id: "enterprise", label: "Enterprise" },
+];
+
+function sliceFor(view: HomeView) {
+  const complete = PROVIDERS.filter((p) => p.researchStatus !== "pending");
+  switch (view) {
+    case "safest":
+      return safestFirst(complete).slice(0, 12);
+    case "researched":
+      return [...complete].sort((a, b) => b.confidence - a.confidence).slice(0, 12);
+    case "digital":
+      return filterProviders({ model: "digital-downloads", sort: "risk-desc" }).slice(0, 12);
+    case "saas":
+      return filterProviders({ model: "saas", sort: "risk-desc" }).slice(0, 12);
+    case "high-ticket":
+      return filterProviders({ model: "high-ticket", sort: "risk-desc" }).slice(0, 12);
+    case "smb":
+      return complete.filter((p) => p.focus !== "enterprise").sort((a, b) => b.scores.overall - a.scores.overall).slice(0, 12);
+    case "enterprise":
+      return complete.filter((p) => p.focus !== "sme").sort((a, b) => b.scores.overall - a.scores.overall).slice(0, 12);
+    default:
+      return [...complete].sort((a, b) => b.scores.overall - a.scores.overall).slice(0, 12);
+  }
+}
+
+function Home() {
+  const [view, setView] = useState<HomeView>("riskiest");
+  const [q, setQ] = useState("");
+  const rows = useMemo(() => sliceFor(view), [view]);
+  const hits = q.trim() ? searchProviders(q).slice(0, 6) : [];
+
+  return (
+    <div>
+      <section className="page-wrap pt-8 pb-6 md:pt-16 md:pb-8">
+        <p className="text-xs uppercase tracking-[0.18em] text-accent font-medium">Independent research · {PROVIDERS.length} processors</p>
+        <h1 className="mt-3 font-display text-3xl md:text-5xl max-w-3xl">{TAGLINE}</h1>
+        <p className="mt-3 max-w-2xl text-ink-muted text-sm md:text-lg">{SUBLINE}</p>
+        <form
+          className="mt-6 max-w-xl"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const first = searchProviders(q)[0];
+            if (first) window.location.assign(`/processor/${first.slug}`);
+          }}
+        >
+          <label htmlFor="home-search" className="sr-only">
+            Search processors
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-ink-subtle" />
+            <Input
+              id="home-search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search Stripe, PayPal, Adyen, Paddle…"
+              className="pl-10"
+            />
+          </div>
+          {hits.length > 0 ? (
+            <ul className="mt-2 rounded-md border border-border bg-bg-elevated overflow-hidden">
+              {hits.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    to="/processor/$slug"
+                    params={{ slug: p.slug }}
+                    className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-surface"
+                  >
+                    <span>{p.name}</span>
+                    <ScoreNumber value={p.scores.overall} size="sm" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </form>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button asChild>
+            <Link to="/rankings">
+              See the rankings <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link to="/methodology">How we score them</Link>
+          </Button>
+        </div>
+        <p className="mt-4 text-sm text-ink-subtle">Because finding out after your payouts are frozen is a terrible research strategy.</p>
+      </section>
+
+      <section className="page-wrap pb-12">
+        <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Homepage ranking views">
+          {VIEWS.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              role="tab"
+              aria-selected={view === v.id}
+              onClick={() => setView(v.id)}
+              className={
+                view === v.id
+                  ? "h-11 px-3 rounded-sm bg-ink text-bg text-sm"
+                  : "h-11 px-3 rounded-sm bg-surface text-ink-muted text-sm hover:text-ink"
+              }
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <div className="hidden md:block">
+          <RankTable rows={rows} compact />
+        </div>
+        <RankCards rows={rows} />
+        <p className="mt-3 text-xs text-ink-subtle">
+          Higher = greater merchant lockout exposure. Not a probability, credit rating, or allegation of wrongdoing.
+        </p>
+      </section>
+
+      <section className="page-wrap grid gap-4 md:grid-cols-3 pb-16">
+        <HomeCard
+          to="/how-cooked"
+          title="How cooked are you?"
+          body="A short dependency check. The processor is only half the problem. The other half is that it is the only processor."
+        />
+        <HomeCard
+          to="/escape"
+          title="Build your escape hatch"
+          body="Primary card rail, backup card, independent bank-payment, optional wallet, optional MoR. Watch for the same family tree twice."
+        />
+        <HomeCard
+          to="/methodology"
+          title="The boring bit that can bankrupt you"
+          body="Seven dimensions, cited terms, complaint bias, popularity bias. Scores are not jokes. The headlines can be."
+        />
+      </section>
+
+      <section className="page-wrap grid gap-4 md:grid-cols-2 pb-16">
+        <HomeCard
+          to="/for"
+          title="By business type"
+          body="Digital goods, SaaS, high ticket, marketplaces, freelancers — different blast radii."
+        />
+        <HomeCard
+          to="/country"
+          title="By merchant country"
+          body="Who can actually open an account if the company is incorporated there. Not who can pay."
+        />
+      </section>
+
+      <section className="page-wrap pb-16">
+        <h2 className="font-display text-2xl">What this is not</h2>
+        <ul className="mt-4 grid gap-3 md:grid-cols-2 text-sm text-ink-muted">
+          <li className="rounded-md border border-border bg-bg-elevated p-4">Not a fee comparison. Your 2.9% is not the scary part.</li>
+          <li className="rounded-md border border-border bg-bg-elevated p-4">Not an affiliate ranking. No processor buys a better score.</li>
+          <li className="rounded-md border border-border bg-bg-elevated p-4">Not a claim that Reddit is a court. Anecdotes are labelled. Contracts are cited.</li>
+          <li className="rounded-md border border-border bg-bg-elevated p-4">Not legal advice. Read the agreement that actually governs your MID.</li>
+        </ul>
+        <p className="mt-6 text-sm">
+          Last verified 6 September 2026.{" "}
+          <Link to="/corrections" className="text-accent hover:underline">
+            Think we got something wrong?
+          </Link>
+        </p>
+      </section>
+    </div>
+  );
+}
+
+function HomeCard({ to, title, body }: { to: string; title: string; body: string }) {
+  return (
+    <Link to={to} className="rounded-lg border border-border bg-bg-elevated p-5 hover:border-border-strong block">
+      <h2 className="font-display text-xl">{title}</h2>
+      <p className="mt-2 text-sm text-ink-muted">{body}</p>
+    </Link>
+  );
+}
