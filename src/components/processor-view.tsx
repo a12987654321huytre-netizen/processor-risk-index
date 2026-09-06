@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { DimensionScores, Provider } from "@/data/types";
-import { DIMENSION_META, flagLabel, typeLabel } from "@/data/scoring";
+import { DIMENSION_META, typeLabel, riskAnnotation, dependencyAnnotation } from "@/data/scoring";
 import { alternativeGroups, infraFor, sourcesFor } from "@/data";
 import { researchStatusHint, researchStatusLabel, typeContextNote } from "@/data/eligibility";
 import { formatDimension } from "@/data/rubric";
@@ -66,10 +66,13 @@ function escalationLabel(v: Provider["snapshot"]["escalationQuality"]): string {
 }
 
 function scoreAnnotation(n: number | null): string | null {
-  if (n === null) return null;
-  if (n >= 60) return "yeah, we’d have a backup";
-  if (n <= 30) return "relatively boring. That’s a compliment.";
-  return null;
+  return riskAnnotation(n);
+}
+
+function formatReceiptDate(s: string): string {
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
 }
 
 export function ProcessorView({ provider: p }: { provider: Provider }) {
@@ -106,8 +109,8 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
             </div>
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-bg-elevated p-4 min-w-[220px]">
-          <p className="text-xs uppercase tracking-wide text-ink-subtle">Provider risk</p>
+        <div className="border border-border bg-bg-elevated p-4 min-w-[220px]">
+          <p className="receipt">Risk index</p>
           <ScoreNumber value={p.publishedOverall} size="lg" />
           {scoreAnnotation(p.publishedOverall) ? (
             <p className="mt-1 font-mono text-[11px] text-ink-subtle">{scoreAnnotation(p.publishedOverall)}</p>
@@ -131,26 +134,23 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
       </header>
 
       {p.structuralNote ? (
-        <p className="mt-6 rounded-md border border-border bg-surface p-4 text-sm text-ink-muted">{p.structuralNote}</p>
+        <p className="mt-6 border-l-2 border-border-strong pl-4 text-sm text-ink-muted">{p.structuralNote}</p>
       ) : null}
 
-      <section className="mt-8 rounded-md border border-border bg-bg-elevated p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-medium text-sm">Research depth</h2>
-          <span className="text-xs uppercase tracking-wide text-ink-subtle">{depth.band} · next to evidence confidence</span>
-        </div>
-        <dl className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+      <section className="mt-8 border-y border-border py-4">
+        <p className="receipt mb-3">The homework</p>
+        <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            ["Official sources", depth.officialSources],
-            ["Independent reports", depth.independentReports],
-            ["Jurisdictions checked", depth.jurisdictions],
-            ["Incidents logged", depth.incidents],
-            ["Successful resolutions", depth.successfulResolutions],
-            ["Last verified", depth.lastVerified],
+            ["Sources", String(sources.length)],
+            ["Incidents", String(depth.incidents)],
+            ["Jurisdictions", String(depth.jurisdictions)],
+            ["Last checked", formatReceiptDate(depth.lastVerified)],
+            ["Confidence", `${conf.total} / ${conf.total >= 70 ? "High" : conf.total >= 50 ? "Med" : "Low"}`],
+            ["Rank", `#${p.rank} of 50`],
           ].map(([k, v]) => (
             <div key={k}>
-              <dt className="text-xs text-ink-subtle">{k}</dt>
-              <dd className="tabular mt-0.5">{v}</dd>
+              <dt className="receipt">{k}</dt>
+              <dd className="tabular text-sm mt-0.5">{v}</dd>
             </div>
           ))}
         </dl>
@@ -165,21 +165,21 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
       <section className="mt-10">
         <h2 className="font-display text-2xl">The short version</h2>
         <p className="mt-3 max-w-3xl text-ink-muted">{p.verdict.short}</p>
-        <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
-          <div className="rounded-md border border-border bg-bg-elevated p-4">
-            <dt className="text-ink-subtle">Best for</dt>
+        <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2 text-sm border-t border-border pt-4">
+          <div>
+            <dt className="receipt">Best for</dt>
             <dd className="mt-1">{p.whoFor.bestFor}</dd>
           </div>
-          <div className="rounded-md border border-border bg-bg-elevated p-4">
-            <dt className="text-ink-subtle">Think twice if</dt>
+          <div>
+            <dt className="receipt">Think twice if</dt>
             <dd className="mt-1">{p.whoFor.thinkTwiceIf}</dd>
           </div>
-          <div className="rounded-md border border-border bg-bg-elevated p-4">
-            <dt className="text-ink-subtle">Backup recommended</dt>
+          <div>
+            <dt className="receipt">Backup recommended</dt>
             <dd className="mt-1">{p.whoFor.backupRecommended ? "Yes" : "Still a good idea"}</dd>
           </div>
-          <div className="rounded-md border border-border bg-bg-elevated p-4">
-            <dt className="text-ink-subtle">Typical merchant</dt>
+          <div>
+            <dt className="receipt">Typical merchant</dt>
             <dd className="mt-1">{p.whoFor.typicalMerchant}</dd>
           </div>
         </dl>
@@ -187,35 +187,39 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
 
       <section className="mt-10">
         <h2 className="font-display text-2xl">Risk breakdown</h2>
-        <p className="mt-2 text-sm text-ink-subtle">Click a dimension. The number should have receipts.</p>
-        <ul className="mt-4 grid gap-3">
+        <p className="mt-2 text-sm text-ink-subtle">One annotation per section. The rest is receipts.</p>
+        <ul className="mt-4 grid gap-1">
           {DIMENSION_META.map((d) => {
             const shown = formatDimension(p.dimensions[d.key]);
+            const open = openDim === d.key;
+            const depNote = d.key === "dependency" ? dependencyAnnotation(p.dimensions.dependency) : null;
             return (
-              <li key={d.key}>
+              <li key={d.key} className="border-b border-border">
                 <button
                   type="button"
-                  onClick={() => setOpenDim(openDim === d.key ? null : d.key)}
-                  className="w-full text-left grid grid-cols-[1fr_auto] gap-3 items-center rounded-md px-1 py-1 hover:bg-surface"
+                  onClick={() => setOpenDim(open ? null : d.key)}
+                  className="w-full text-left grid grid-cols-[1fr_auto] gap-3 items-center py-3 hover:bg-surface"
+                  aria-expanded={open}
                 >
                   <div className="min-w-0">
                     <div className="flex justify-between text-sm mb-1">
                       <span>
                         {d.label} <span className="text-ink-subtle">({d.weightPct}%)</span>
                       </span>
-                      <span className="tabular">{shown.precise ? shown.text : shown.text}</span>
+                      <span className="tabular">{shown.text}</span>
                     </div>
                     <ScoreBar value={p.dimensions[d.key]} />
-                    <p className="mt-1 text-xs text-ink-subtle">{d.help}</p>
+                    {depNote ? <p className="mt-1 font-mono text-[11px] text-ink-subtle">{depNote}</p> : null}
                   </div>
+                  <span className="receipt shrink-0">{open ? "Hide receipts" : "Show me the receipts"}</span>
                 </button>
               </li>
             );
           })}
         </ul>
         {drawer ? (
-          <div className="mt-4 rounded-lg border border-border-strong bg-bg-elevated p-5">
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">Why {formatDimension(drawer.score).text}?</p>
+          <div className="mt-4 border border-border bg-bg-elevated p-4">
+            <p className="receipt">Why {formatDimension(drawer.score).text}?</p>
             <h3 className="mt-1 font-display text-xl">{DIMENSION_META.find((d) => d.key === drawer.key)?.label}</h3>
             <p className="mt-2 text-sm text-ink-muted">
               Rubric {drawer.bandLabel}: {drawer.bandText}
@@ -334,7 +338,7 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
           <p className="mt-2 text-sm text-ink-muted">Ownership is not automatically the same acquiring file. We only warn where the relationship is documented.</p>
           <ul className="mt-3 grid gap-2">
             {family.map((g) => (
-              <li key={g.id} className="rounded-md border border-border bg-surface p-4 text-sm">
+              <li key={g.id} className="border-t border-border py-3 text-sm">
                 <p className="font-mono text-[11px] text-ink-subtle">
                   {g.kind === "ownership" ? "same parent company" : g.kind === "processing" ? "processing dependency" : g.kind === "acquiring" ? "acquiring dependency" : "relationship unclear"}
                 </p>
@@ -348,8 +352,8 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
 
       <section className="mt-10">
         <h2 className="font-display text-2xl">What the contract says</h2>
-        <p className="mt-2 text-sm text-ink-subtle">Paraphrases, not legal advice. Read the linked agreement. We’ll make the joke. Then we’ll show you the contract clause.</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <p className="mt-2 text-sm text-ink-subtle">The contract says one thing. Merchants have opinions. Here are both. Paraphrases, not legal advice.</p>
+        <div className="mt-2">
           {p.contract.map((f) => (
             <FindingCard key={f.id} finding={f} />
           ))}
@@ -359,11 +363,11 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
       <section className="mt-10">
         <h2 className="font-display text-2xl">What merchants report</h2>
         <p className="mt-2 text-sm text-ink-muted">The contract says one thing. Merchants have opinions. Here are both. Ten comments in one thread still count as one incident.</p>
-        <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+        <ul className="mt-4 grid gap-3 sm:grid-cols-3 border-t border-border pt-4">
           {p.reportBuckets.map((b) => (
-            <li key={b.key} className="rounded-md border border-border bg-bg-elevated p-4">
-              <p className="text-sm font-medium">{b.label}</p>
-              <p className="tabular text-2xl font-display mt-1">{b.count === null ? "—" : b.count}</p>
+            <li key={b.key}>
+              <p className="receipt">{b.label}</p>
+              <p className="tabular text-2xl mt-1">{b.count === null ? "—" : b.count}</p>
               <p className="text-xs text-ink-subtle mt-2">{b.note}</p>
             </li>
           ))}
@@ -371,7 +375,7 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
         {p.incidents.length > 0 ? (
           <ul className="mt-4 grid gap-3">
             {p.incidents.map((inc) => (
-              <li key={inc.id} className="rounded-md border border-border p-4">
+              <li key={inc.id} className="border-t border-border py-4">
                 <div className="flex flex-wrap gap-2 items-center">
                   <EvidenceChip label={inc.label} />
                   <span className="text-xs text-ink-subtle">{inc.date ?? "Date unknown"}</span>
@@ -397,7 +401,7 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
         {p.positiveOutcomes.length ? (
           <ul className="mt-3 grid gap-2">
             {p.positiveOutcomes.map((o) => (
-              <li key={o.id} className="rounded-md border border-border bg-bg-elevated p-4 text-sm">
+              <li key={o.id} className="border-t border-border py-3 text-sm">
                 {o.summary}
                 {o.date ? <span className="block text-xs text-ink-subtle mt-1">{o.date}</span> : null}
               </li>
@@ -409,10 +413,10 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
       </section>
 
       <section className="mt-10">
-        <h2 className="font-display text-2xl">What tends to trigger scrutiny?</h2>
+        <h2 className="font-display text-2xl">What seems to trigger scrutiny</h2>
         <ul className="mt-3 grid gap-2">
           {p.triggers.map((t) => (
-            <li key={t.id} className="flex flex-col sm:flex-row sm:items-baseline gap-2 rounded-md border border-border p-3 text-sm">
+            <li key={t.id} className="flex flex-col sm:flex-row sm:items-baseline gap-2 border-t border-border py-3 text-sm">
               <span>{t.text}</span>
               <span className="text-xs text-ink-subtle sm:ml-auto">{t.evidence.replace(/-/g, " ")}</span>
             </li>
@@ -420,7 +424,7 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
         </ul>
       </section>
 
-      <section className="mt-10 rounded-lg border border-border-strong bg-surface p-5">
+      <section className="mt-10 border border-border bg-surface p-5">
         <h2 className="font-display text-2xl">If they shut you down tomorrow</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Blast radius: <strong>{p.ohShit.blastRadius}</strong>. This is architecture, not a prediction. The worst time to build a fire escape is during the fire.
@@ -463,33 +467,57 @@ export function ProcessorView({ provider: p }: { provider: Provider }) {
       </section>
 
       <section className="mt-10">
-        <h2 className="font-display text-2xl">What should sit beside it</h2>
+        <h2 className="font-display text-2xl">So where the hell do I go instead?</h2>
         <p className="mt-2 text-sm text-ink-muted">
           Recommendations are grouped by intent. A close substitute is not a lower-risk escape. {COMMERCIAL_FIREWALL}
         </p>
         {groups.map((g) => (
-          <div key={g.kind} className="mt-5">
-            <h3 className="font-medium text-sm">{g.heading}</h3>
-            <ul className="mt-2 grid gap-2">
-              {g.items.map((a) => (
-                <li key={a.providerId + a.kind}>
-                  <Link
-                    to="/processor/$slug"
-                    params={{ slug: a.provider.slug }}
-                    className="block rounded-md border border-border bg-bg-elevated p-4 hover:border-border-strong"
-                  >
-                    <span className="flex flex-wrap items-baseline gap-2">
-                      <span className="font-medium">{a.provider.name}</span>
-                      <span className="tabular text-xs text-ink-subtle">#{a.provider.rank} · {a.provider.publishedOverall}/100</span>
-                      {typeof a.riskDelta === "number" && a.riskDelta <= -8 ? (
-                        <span className="font-mono text-[11px] text-accent">↓ {Math.abs(Math.round(a.riskDelta))} risk points</span>
+          <div key={g.kind} className="mt-6">
+            <h3 className="receipt text-ink">{g.heading}</h3>
+            <ul className="mt-2 divide-y divide-border border-t border-border">
+              {g.items.map((a, i) => {
+                const delta = typeof a.riskDelta === "number" ? Math.round(a.riskDelta) : null;
+                const safer = delta !== null && delta <= -8;
+                const punchline = g.kind === "lower-risk-escape" && i === 0 && safer;
+                return (
+                  <li key={a.providerId + a.kind}>
+                    <Link
+                      to="/processor/$slug"
+                      params={{ slug: a.provider.slug }}
+                      className="block py-4 hover:bg-surface"
+                    >
+                      <span className="flex flex-wrap items-baseline gap-2">
+                        <span className="font-medium">{a.provider.name}</span>
+                        <span className="tabular text-xs text-ink-subtle">
+                          #{a.provider.rank} · {p.publishedOverall}
+                          {safer ? " → " : " · "}
+                          {safer ? a.provider.publishedOverall : `${a.provider.publishedOverall}/100`}
+                        </span>
+                        {safer ? (
+                          <span className="receipt text-accent">{delta} risk points</span>
+                        ) : null}
+                        {a.tag === "same-problem" ? (
+                          <span className="receipt text-risk-high">Same problem, different logo</span>
+                        ) : null}
+                        {a.tag === "independent" ? (
+                          <span className="receipt text-accent">Actually independent</span>
+                        ) : null}
+                      </span>
+                      {punchline ? (
+                        <span className="block font-mono text-[11px] text-ink-subtle mt-1">Now we're actually getting somewhere.</span>
                       ) : null}
-                    </span>
-                    {a.annotation ? <span className="block font-mono text-[11px] text-ink-subtle mt-1">{a.annotation}</span> : null}
-                    <span className="text-sm text-ink-muted mt-1 block">{a.headline || a.why}</span>
-                  </Link>
-                </li>
-              ))}
+                      {a.annotation && a.tag !== "same-problem" && a.tag !== "independent" ? (
+                        <span className="block font-mono text-[11px] text-ink-subtle mt-1">{a.annotation}</span>
+                      ) : a.tag === "same-problem" ? (
+                        <span className="block text-sm text-ink-muted mt-1">
+                          This may work as a replacement, but it doesn't significantly reduce the risk category you're trying to escape.
+                        </span>
+                      ) : null}
+                      <span className="text-sm text-ink-muted mt-1 block">{a.headline || a.why}</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ))}

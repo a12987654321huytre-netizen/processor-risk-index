@@ -15,20 +15,25 @@ export const WEIGHTS = {
   dependency: 0.08,
 } as const;
 
-export function computeOverall(d: DimensionScores): number {
-  const raw =
+export function computeOverallRaw(d: DimensionScores): number {
+  return (
     d.suspension * WEIGHTS.suspension +
     d.fundsHold * WEIGHTS.fundsHold +
     d.underwriting * WEIGHTS.underwriting +
     d.appeal * WEIGHTS.appeal +
     d.policy * WEIGHTS.policy +
     d.incidents * WEIGHTS.incidents +
-    d.dependency * WEIGHTS.dependency;
-  return Math.round(raw * 10);
+    d.dependency * WEIGHTS.dependency
+  ) * 10;
+}
+
+export function computeOverall(d: DimensionScores): number {
+  return Math.round(computeOverallRaw(d));
 }
 
 export function withScores(d: DimensionScores): Scores {
-  return { ...d, overall: computeOverall(d) };
+  const overallRaw = computeOverallRaw(d);
+  return { ...d, overall: Math.round(overallRaw), overallRaw };
 }
 
 export type RiskBand = {
@@ -141,29 +146,50 @@ export const DIMENSION_META: {
   },
 ];
 
-export function rankProviders(providers: Provider[]): Provider[] {
-  return [...providers].sort(
-    (a, b) =>
-      (b.publishedOverall ?? b.scores.overall) - (a.publishedOverall ?? a.scores.overall) ||
-      b.confidence - a.confidence ||
-      a.name.localeCompare(b.name),
+export function compareRiskDesc(a: Provider, b: Provider): number {
+  const aPub = a.publishedOverall ?? a.scores.overall;
+  const bPub = b.publishedOverall ?? b.scores.overall;
+  return (
+    bPub - aPub ||
+    b.scores.overallRaw - a.scores.overallRaw ||
+    b.dimensions.fundsHold - a.dimensions.fundsHold ||
+    b.dimensions.suspension - a.dimensions.suspension ||
+    b.dimensions.dependency - a.dimensions.dependency ||
+    a.name.localeCompare(b.name)
   );
+}
+
+/** Rank 1 first. After enrich, this is the assigned rank order. */
+export function rankProviders(providers: Provider[]): Provider[] {
+  return [...providers].sort((a, b) => {
+    if (a.rank && b.rank) return a.rank - b.rank;
+    return compareRiskDesc(a, b);
+  });
 }
 
 export function safestFirst(providers: Provider[]): Provider[] {
-  return [...providers].sort(
-    (a, b) =>
-      (a.publishedOverall ?? a.scores.overall) - (b.publishedOverall ?? b.scores.overall) ||
-      a.name.localeCompare(b.name),
-  );
+  return [...providers].sort((a, b) => {
+    if (a.rank && b.rank) return b.rank - a.rank;
+    return -compareRiskDesc(a, b);
+  });
 }
 
 export function riskiestFirst(providers: Provider[]): Provider[] {
-  return [...providers].sort(
-    (a, b) =>
-      (b.publishedOverall ?? b.scores.overall) - (a.publishedOverall ?? a.scores.overall) ||
-      a.name.localeCompare(b.name),
-  );
+  return rankProviders(providers);
+}
+
+export function riskAnnotation(n: number | null | undefined): string | null {
+  if (n === null || n === undefined) return null;
+  if (n >= 75) return "yeah, we'd have a backup";
+  if (n >= 60) return "worth planning around";
+  if (n >= 40) return "not terrifying, not invisible";
+  if (n <= 35) return "boring is good here";
+  return null;
+}
+
+export function dependencyAnnotation(n: number): string | null {
+  if (n >= 8) return "this is the bit we'd worry about";
+  return null;
 }
 
 export function typeLabel(t: string): string {

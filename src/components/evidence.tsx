@@ -19,6 +19,30 @@ export function EvidenceChip({ label }: { label: EvidenceLabel }) {
   );
 }
 
+export function sourceLinkKind(s: Source): string {
+  switch (s.sourceType) {
+    case "official-agreement":
+      return "Official terms";
+    case "help-centre":
+      return "Provider help doc";
+    case "regulatory":
+      return "Regulator";
+    case "journalism":
+      return "Independent report";
+    case "court":
+      return "Court";
+    case "filing":
+      return "Filing";
+    case "reddit":
+    case "forum":
+    case "review-platform":
+    case "public-social":
+      return "Merchant report";
+    default:
+      return sourceTypeLabel(s.sourceType);
+  }
+}
+
 export function SourceLink({ id, source }: { id?: string; source?: Source }) {
   const s = source ?? (id ? getSource(id) : undefined);
   if (!s) return <span className="text-xs text-ink-subtle">Source pending</span>;
@@ -27,8 +51,9 @@ export function SourceLink({ id, source }: { id?: string; source?: Source }) {
       href={s.url}
       target="_blank"
       rel="noreferrer"
-      className="text-xs text-accent hover:underline underline-offset-2"
+      className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline underline-offset-2"
     >
+      <span className="receipt text-ink-subtle">{sourceLinkKind(s)}</span>
       {s.title} ↗
     </a>
   );
@@ -36,10 +61,10 @@ export function SourceLink({ id, source }: { id?: string; source?: Source }) {
 
 export function FindingCard({ finding }: { finding: OfficialFinding }) {
   return (
-    <article className="rounded-md border border-border bg-bg-elevated p-4">
+    <article className="border-t border-border py-4">
       <div className="flex items-center gap-2 mb-2">
         <EvidenceChip label="official-policy" />
-        {finding.jurisdiction ? <span className="text-xs text-ink-subtle">{finding.jurisdiction}</span> : null}
+        {finding.jurisdiction ? <span className="receipt">{finding.jurisdiction}</span> : null}
       </div>
       <h3 className="font-medium text-sm">{finding.title}</h3>
       <p className="mt-1 text-sm text-ink-muted">{finding.paraphrase}</p>

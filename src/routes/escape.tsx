@@ -43,13 +43,16 @@ function Escape() {
     return infraWarnings([a, b]).length === 0;
   };
 
+  const token = p?.ohShit.paymentDataPortable ?? "Unknown";
+  const subs = p?.ohShit.subscriptionsMigrate ?? "Unknown";
+  const blast = p?.ohShit.blastRadius ?? "Unknown";
+
   return (
     <div className="page-wrap py-10">
-      <p className="text-xs uppercase tracking-[0.18em] text-accent font-medium">The emergency exit</p>
+      <p className="meta text-accent">The emergency exit</p>
       <h1 className="mt-2 font-display text-4xl">Build your escape hatch</h1>
       <p className="mt-3 max-w-2xl text-ink-muted">
-        If this processor vanished tomorrow, what would you do? Backup processor: cheaper than a nervous breakdown. We
-        flag when two “different” logos share infrastructure.
+        If this processor vanished tomorrow, what would you do? Backup processor: cheaper than a nervous breakdown.
       </p>
 
       <div className="mt-8 max-w-md">
@@ -64,67 +67,115 @@ function Escape() {
       </div>
 
       {p ? (
-        <p className="mt-6 max-w-2xl text-sm text-ink-muted">
-          First action: integrate the backup while your {p.name} account is healthy. The worst time to build a fire
-          escape is during the fire. Subscriptions on this stack: {p.ohShit.subscriptionsMigrate} Token portability:{" "}
-          {p.ohShit.paymentDataPortable}
-        </p>
+        <section className="mt-10 border-t border-border pt-6">
+          <h2 className="receipt text-ink">Your current stack</h2>
+          <dl className="mt-3 grid sm:grid-cols-2 gap-x-8">
+            <Row k="Primary" v={p.name} />
+            <Row k="Backup card" v={backupCard?.name ?? "None"} warn={!backupCard} />
+            <Row k="Independent rail" v={bank?.name ?? "None"} warn={!bank} />
+            <Row k="Subscriptions" v={subs} />
+            <Row k="Token dependency" v={token} />
+            <Row k="Blast radius" v={blast} />
+          </dl>
+        </section>
       ) : null}
 
       {p ? (
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <Card
-            kicker="Primary card rail"
-            name={p.name}
-            slug={p.slug}
-            score={p.publishedOverall}
-            note={p.isMoR ? "This primary is a Merchant of Record. Cards here are not ‘your’ MID." : p.acquiringModel}
-            independent
-          />
-          <Card
-            kicker="Backup card processor"
-            name={backupCard?.name ?? "Add a second PSP"}
-            slug={backupCard?.slug}
-            score={backupCard?.publishedOverall}
-            note={
-              backupCard
-                ? independent(primary, backupCard.id)
-                  ? "Different family from the primary on PRI’s overlap map."
-                  : "Related infrastructure — this is not a real backup."
-                : "No suggestion matched."
-            }
-            independent={backupCard ? independent(primary, backupCard.id) : false}
-          />
-          <Card
-            kicker="Independent bank-payment rail"
-            name={bank?.name ?? "GoCardless / Trustly / local bank"}
-            slug={bank?.slug}
-            score={bank?.publishedOverall}
-            note="Cards and bank debit fail for different reasons. That is the point."
-            independent={bank ? independent(primary, bank.id) : true}
-          />
-          <Card
-            kicker="Optional wallet"
-            name={wallet?.name ?? "Wallet sidecar"}
-            slug={wallet?.slug}
-            score={wallet?.publishedOverall}
-            note="A wallet is a method, not a treasury. Do not park operating cash there."
-            independent={wallet ? independent(primary, wallet.id) : true}
-          />
-          <Card
-            kicker="Optional Merchant of Record"
-            name={mor?.name ?? "MoR for tax-heavy geos only"}
-            slug={mor?.slug}
-            score={mor?.publishedOverall}
-            note="Use MoR where tax/VAT handling is the job, not as 100% of billing."
-            independent={mor ? independent(primary, mor.id) : true}
-          />
-        </div>
+        <section className="mt-10 border-t border-border pt-6">
+          <h2 className="receipt text-ink">Your escape hatch</h2>
+          <ol className="mt-3 list-decimal pl-5 text-sm space-y-2 max-w-2xl">
+            <li>
+              Add backup card processor
+              {backupCard ? (
+                <>
+                  :{" "}
+                  <Link to="/processor/$slug" params={{ slug: backupCard.slug }} className="text-accent hover:underline">
+                    {backupCard.name}
+                  </Link>
+                  {independent(primary, backupCard.id) ? "" : " — related infrastructure, pick another."}
+                </>
+              ) : null}
+            </li>
+            <li>
+              Add independent payment rail
+              {bank ? (
+                <>
+                  :{" "}
+                  <Link to="/processor/$slug" params={{ slug: bank.slug }} className="text-accent hover:underline">
+                    {bank.name}
+                  </Link>
+                </>
+              ) : null}
+            </li>
+            <li>Verify subscription migration path — {subs}</li>
+            <li>Document settlement exposure — {p.ohShit.fundsHeld}</li>
+            <li>Test backup checkout while this {p.name} account is healthy</li>
+          </ol>
+          <p className="mt-4 font-mono text-[12px] text-ink-subtle">The worst time to build a fire escape is during the fire.</p>
+        </section>
+      ) : null}
+
+      {p ? (
+        <section className="mt-10 overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm text-left">
+            <thead>
+              <tr className="border-b border-border receipt">
+                <th className="py-2 pr-3 font-medium">Role</th>
+                <th className="py-2 pr-3 font-medium">Name</th>
+                <th className="py-2 pr-3 font-medium">Risk</th>
+                <th className="py-2 font-medium">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <StackRow
+                role="Primary"
+                name={p.name}
+                slug={p.slug}
+                score={p.publishedOverall}
+                note={p.isMoR ? "Merchant of Record. Cards here are not your MID." : p.acquiringModel}
+              />
+              <StackRow
+                role="Backup card"
+                name={backupCard?.name ?? "Add a second PSP"}
+                slug={backupCard?.slug}
+                score={backupCard?.publishedOverall}
+                note={
+                  backupCard
+                    ? independent(primary, backupCard.id)
+                      ? "Different family from the primary."
+                      : "Related infrastructure — this is not a real backup."
+                    : "No suggestion matched."
+                }
+              />
+              <StackRow
+                role="Independent rail"
+                name={bank?.name ?? "Pay-by-bank / local bank"}
+                slug={bank?.slug}
+                score={bank?.publishedOverall}
+                note="Cards and bank debit fail for different reasons. That is the point."
+              />
+              <StackRow
+                role="Optional wallet"
+                name={wallet?.name ?? "Wallet sidecar"}
+                slug={wallet?.slug}
+                score={wallet?.publishedOverall}
+                note="A wallet is a method, not a treasury."
+              />
+              <StackRow
+                role="Optional MoR"
+                name={mor?.name ?? "MoR for tax-heavy geos only"}
+                slug={mor?.slug}
+                score={mor?.publishedOverall}
+                note="Use MoR where tax handling is the job, not as 100% of billing."
+              />
+            </tbody>
+          </table>
+        </section>
       ) : null}
 
       {warnings.length ? (
-        <section className="mt-8 rounded-md border border-risk-high/30 bg-risk-high-bg p-4">
-          <h2 className="font-display text-xl text-risk-high">Same tree, two logos</h2>
+        <section className="mt-8 border border-risk-high/30 bg-risk-high-bg p-4">
+          <h2 className="font-sans text-lg font-medium text-risk-high">Same tree, two logos</h2>
           <ul className="mt-2 text-sm space-y-2 text-ink">
             {warnings.map((w) => (
               <li key={w.id}>{w.warning}</li>
@@ -148,41 +199,44 @@ function Escape() {
   );
 }
 
-function Card({
-  kicker,
+function Row({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
+  return (
+    <div className="border-b border-border py-2 flex items-baseline justify-between gap-4">
+      <dt className="receipt">{k}</dt>
+      <dd className={warn ? "text-sm text-risk-high" : "text-sm"}>{v}</dd>
+    </div>
+  );
+}
+
+function StackRow({
+  role,
   name,
   slug,
   score,
   note,
-  independent,
 }: {
-  kicker: string;
+  role: string;
   name: string;
   slug?: string;
   score?: number | null;
   note: string;
-  independent: boolean;
 }) {
-  const inner = (
-    <>
-      <p className="text-xs uppercase tracking-wide text-ink-subtle">{kicker}</p>
-      <p className="mt-1 font-medium text-lg">{name}</p>
-      {score !== undefined ? (
-        <div className="mt-1">
-          <ScoreNumber value={score} size="sm" />
-        </div>
-      ) : null}
-      <p className="mt-2 text-sm text-ink-muted">{note}</p>
-      <p className="mt-2 text-xs">{independent ? "Treated as independent on PRI’s overlap map." : "Not independent of the primary."}</p>
-    </>
+  return (
+    <tr className="border-b border-border align-top">
+      <td className="py-3 pr-3 receipt">{role}</td>
+      <td className="py-3 pr-3">
+        {slug ? (
+          <Link to="/processor/$slug" params={{ slug }} className="font-medium hover:underline">
+            {name}
+          </Link>
+        ) : (
+          <span>{name}</span>
+        )}
+      </td>
+      <td className="py-3 pr-3">
+        <ScoreNumber value={score} size="sm" />
+      </td>
+      <td className="py-3 text-ink-muted">{note}</td>
+    </tr>
   );
-  const cls = "rounded-lg border border-border bg-bg-elevated p-4 block";
-  if (slug) {
-    return (
-      <Link to="/processor/$slug" params={{ slug }} className={cls}>
-        {inner}
-      </Link>
-    );
-  }
-  return <div className={cls}>{inner}</div>;
 }

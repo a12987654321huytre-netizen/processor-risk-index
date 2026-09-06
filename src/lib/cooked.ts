@@ -18,6 +18,7 @@ export type CookedInput = {
   subscription: boolean;
   crossBorder: boolean;
   backupId: string;
+  independentRail: boolean;
   revenueShare: "all" | "most" | "half" | "minor";
   cashBuffer: "under-1m" | "1-3m" | "over-3m";
 };
@@ -69,13 +70,21 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
     if (warn.length) {
       exposure += 10;
       observations.push(warn[0].warning);
-      observations.push("These aren’t as independent as they look.");
+      observations.push("These aren't as independent as they look.");
       fixes.push("Pick a backup that is not the same underlying family.");
     } else if (b) {
       observations.push(
         `Backup on file: ${b.name} (index ${b.publishedOverall}, #${b.rank}). Confirm it is actually live, not a half-finished signup.`,
       );
     }
+  }
+
+  if (!input.independentRail) {
+    exposure += 4;
+    observations.push("No independent payment rail. Another card processor is useful. Another rail is better.");
+    fixes.push("Add a pay-by-bank or local rail that does not share this processor's infrastructure.");
+  } else {
+    observations.push("Independent rail on file. That is real diversification, if it is actually live.");
   }
 
   if (input.cashBuffer === "under-1m") {
@@ -155,11 +164,13 @@ export function evaluateCooked(input: CookedInput): CookedResult | null {
   uniqFixes.push("Keep KYC documents current. Do not hide activity from compliance systems.");
 
   const signature =
-    input.revenueShare === "all" && !input.backupId
-      ? "The processor isn’t the scariest part. Your dependency is."
-      : exposure >= 75
-        ? "You’re pretty cooked."
-        : "Backup processor: cheaper than a nervous breakdown.";
+    exposure <= 45
+      ? "You're actually in decent shape."
+      : input.revenueShare === "all" && !input.backupId
+        ? "Your processor isn't the scary bit. Your dependency is."
+        : exposure >= 75
+          ? "You're pretty cooked."
+          : "Backup processor: cheaper than a nervous breakdown.";
 
   return {
     providerRisk,

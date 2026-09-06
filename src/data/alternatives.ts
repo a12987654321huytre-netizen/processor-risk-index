@@ -1,23 +1,26 @@
 import type { AltKind, Alternative, Provider } from "./types";
 import type { InfraGroup } from "./relations";
 
+export type AltTag = "same-problem" | "independent" | "same-family" | "thin";
+
 export type CategorisedAlt = Alternative & {
   provider: Provider;
   headline: string;
   annotation?: string;
+  tag?: AltTag;
 };
 
-const KIND_COPY: Record<string, { heading: string; hideIfEmpty?: boolean }> = {
+const KIND_COPY: Record<string, { heading: string }> = {
   "closest-replacement": { heading: "Closest replacement" },
-  "lower-risk-escape": { heading: "Lower-risk escape route" },
+  "lower-risk-escape": { heading: "Lower-risk escape" },
   "diversify-rail": { heading: "Diversify instead of replace" },
   "independent-rail": { heading: "Diversify instead of replace" },
   "easier-onboarding": { heading: "Easier to get started" },
-  "enterprise-step-up": { heading: "If you’ve outgrown this" },
-  enterprise: { heading: "If you’ve outgrown this" },
-  "merchant-of-record": { heading: "Want someone else to deal with the tax headache?" },
+  "enterprise-step-up": { heading: "Enterprise step-up" },
+  enterprise: { heading: "Enterprise step-up" },
+  "merchant-of-record": { heading: "MoR option" },
   "backup-not-replacement": { heading: "Good backup. Not a replacement." },
-  "lower-lockout": { heading: "Lower-risk escape route" },
+  "lower-lockout": { heading: "Lower-risk escape" },
 };
 
 export function canonicalKind(k: AltKind | string): AltKind {
@@ -73,6 +76,84 @@ export type ScoredCandidate = {
   why: string;
 };
 
+function pub(p: Provider): number {
+  return p.publishedOverall ?? p.scores.overall;
+}
+
+function raw(p: Provider): number {
+  return p.scores.overallRaw;
+}
+
+/** True only when the candidate is actually less lockout-exposed. */
+export function strictlySafer(from: Provider, to: Provider): boolean {
+  const d = pub(from) - pub(to);
+  if (d > 0) return true;
+  if (d < 0) return false;
+  return raw(from) > raw(to);
+}
+
+function structuralEscape(from: Provider, to: Provider): boolean {
+  return (
+    (from.isAggregator && !to.isAggregator) ||
+    (from.isMoR && !to.isMoR) ||
+    (from.hasDirectMerchantAccount !== true && to.hasDirectMerchantAccount === true) ||
+    to.types.includes("direct-acquirer")
+  );
+}
+
+function isIndependentRail(from: Provider, to: Provider, related: InfraGroup[]): boolean {
+  if (related.length) return false;
+  const fromCard = from.types.some((t) => t === "psp" || t === "payment-aggregator" || t === "direct-acquirer" || t === "merchant-account-provider");
+  const toBank = to.types.includes("pay-by-bank") || to.types.includes("alternative-payment-method");
+  const toWallet = to.types.includes("wallet") && !from.types.includes("wallet");
+  const toDirect = from.isAggregator && to.hasDirectMerchantAccount === true && !to.isAggregator;
+  return Boolean((fromCard && toBank) || toWallet || toDirect);
+}
+
+function reciprocalEscape(from: Provider, to: Provider): boolean {
+  return to.alternatives.some((a) => a.providerId === from.id && canonicalKind(a.kind) === "lower-risk-escape");
+}
+
+export function humanWhy(kind: AltKind, from: Provider, to: Provider, related: InfraGroup[]): string {
+  const delta = Math.round(pub(from) - pub(to));
+  const independent = isIndependentRail(from, to, related);
+  if (kind === "closest-replacement") {
+    if (related.length) return "Similar setup. Not much of a risk escape.";
+    if (Math.abs(delta) < 8) return "Similar setup. Not much of a risk escape.";
+    return "Closest operational replacement among names we actually researched.";
+  }
+  if (kind === "lower-risk-escape") {
+    if (independent) return "Different rail entirely. That's real diversification.";
+    if (delta >= 8) return "Actually reduces your platform dependency.";
+    if (structuralEscape(from, to)) return "More traditional acquiring relationship.";
+    return "Good backup. Not a full replacement.";
+  }
+  if (kind === "diversify-rail") return "Different rail entirely. That's real diversification.";
+  if (kind === "easier-onboarding") return "Easier onboarding, but the dependency problem remains.";
+  if (kind === "enterprise-step-up") return "Enterprise option. Probably overkill unless you're moving serious volume.";
+  if (kind === "merchant-of-record") return "They handle the tax paperwork. You handle a fatter dependency.";
+  if (kind === "backup-not-replacement") return "Good backup. Bad escape plan.";
+  if (independent) return "Different rail entirely. That's real diversification.";
+  return "Worth a look. Confirm it actually diversifies risk.";
+}
+
+function tagFor(kind: AltKind, from: Provider, to: Provider, related: InfraGroup[]): AltTag | undefined {
+  if (to.researchStatus === "in-research" || to.researchStatus === "pending") return "thin";
+  if (related.length) return "same-family";
+  if (isIndependentRail(from, to, related)) return "independent";
+  if (kind === "closest-replacement" && Math.abs(pub(from) - pub(to)) < 8) return "same-problem";
+  if (kind === "lower-risk-escape" && pub(from) - pub(to) < 8 && !structuralEscape(from, to)) return "same-problem";
+  return undefined;
+}
+
+function annotationFor(tag: AltTag | undefined): string | undefined {
+  if (tag === "thin") return "Possible alternative — evidence confidence is still low";
+  if (tag === "same-family") return "These aren't as independent as they look.";
+  if (tag === "same-problem") return "SAME PROBLEM, DIFFERENT LOGO";
+  if (tag === "independent") return "ACTUALLY INDEPENDENT";
+  return undefined;
+}
+
 function scoreCandidate(p: Provider, cand: Provider, countryIso?: string): ScoredCandidate {
   const architecture = architectureScore(p, cand);
   let country = overlapCountries(p, cand);
@@ -81,18 +162,18 @@ function scoreCandidate(p: Provider, cand: Provider, countryIso?: string): Score
   }
   const model = featureSimilarity(p, cand);
   const feature = model;
-  const pScore = p.publishedOverall ?? p.scores.overall;
-  const cScore = cand.publishedOverall ?? cand.scores.overall;
+  const pScore = pub(p);
+  const cScore = pub(cand);
   const risk = Math.max(0, Math.min(1, (pScore - cScore + 20) / 40));
   const confidence = cand.confidence / 100;
   const total =
     architecture * 0.25 + country * 0.25 + model * 0.2 + feature * 0.1 + risk * 0.1 + confidence * 0.1;
-  let why = "Similar job, different logo — confirm it actually diversifies risk.";
-  if (architecture >= 0.7 && country >= 0.5) why = "Closest architectural substitute among the names we have actually researched.";
-  else if (cScore <= pScore - 8) why = "Actually reduces your dependency instead of just moving it around.";
-  else if (cand.types.includes("pay-by-bank") || cand.types.includes("wallet")) why = "Another card processor is useful. Another payment rail is better.";
-  else if (cand.focus === "sme" && p.focus !== "sme") why = "Easy to join. Slightly harder to sleep at night.";
-  else if (country < 0.3) why = "Looks great. Unfortunately they may not want merchants from your country.";
+  let why = "Worth a look. Confirm it actually diversifies risk.";
+  if (architecture >= 0.7 && country >= 0.5) why = "Closest operational replacement among names we actually researched.";
+  else if (cScore <= pScore - 8) why = "Actually reduces your platform dependency.";
+  else if (cand.types.includes("pay-by-bank") || cand.types.includes("wallet")) why = "Different rail entirely. That's real diversification.";
+  else if (cand.focus === "sme" && p.focus !== "sme") why = "Easier onboarding, but the dependency problem remains.";
+  else if (country < 0.3) why = "Not available where you live. Rude.";
   return { provider: cand, total, architecture, country, model, feature, risk, confidence, why };
 }
 
@@ -107,8 +188,7 @@ export function buildAltCategories(
   const pool = all.filter((x) => x.id !== p.id);
   const scored = pool.map((c) => scoreCandidate(p, c, countryIso)).sort((a, b) => b.total - a.total);
 
-  const related = (id: string) =>
-    infra.filter((g) => g.members.includes(p.id) && g.members.includes(id));
+  const related = (id: string) => infra.filter((g) => g.members.includes(p.id) && g.members.includes(id));
 
   const curated = p.alternatives
     .map((a) => {
@@ -118,35 +198,34 @@ export function buildAltCategories(
     })
     .filter((x): x is Alternative & { provider: Provider; kind: AltKind } => Boolean(x));
 
-  function take(kind: AltKind, pred: (c: ScoredCandidate) => boolean, fallbackWhy: (c: ScoredCandidate) => string, limit = 2): CategorisedAlt[] {
+  const claimed = new Set<string>();
+
+  function take(
+    kind: AltKind,
+    pred: (c: ScoredCandidate) => boolean,
+    limit = 2,
+  ): CategorisedAlt[] {
     const fromCurated = curated
       .filter((c) => canonicalKind(c.kind) === kind)
+      .filter((c) => !claimed.has(c.providerId))
       .filter((c) => {
         if (kind === "lower-risk-escape") {
-          const delta = (p.publishedOverall ?? p.scores.overall) - (c.provider.publishedOverall ?? c.provider.scores.overall);
-          const structural =
-            (p.isAggregator && !c.provider.isAggregator) ||
-            (p.isMoR && !c.provider.isMoR) ||
-            (p.hasDirectMerchantAccount !== true && c.provider.hasDirectMerchantAccount === true);
-          return delta >= MIN_ESCAPE_POINTS || structural;
+          if (reciprocalEscape(p, c.provider) && !strictlySafer(p, c.provider)) return false;
+          const delta = pub(p) - pub(c.provider);
+          return delta >= MIN_ESCAPE_POINTS || (structuralEscape(p, c.provider) && strictlySafer(p, c.provider));
         }
         return true;
       })
       .map((c) => {
-        const delta =
-          (c.provider.publishedOverall ?? c.provider.scores.overall) - (p.publishedOverall ?? p.scores.overall);
-        const sameFamily = related(c.provider.id);
-        const incomplete = c.provider.researchStatus === "in-research" || c.provider.researchStatus === "pending";
+        const rel = related(c.provider.id);
+        const tag = tagFor(kind, p, c.provider, rel);
+        const delta = pub(c.provider) - pub(p);
         return {
           ...c,
-          headline: c.why,
-          annotation: incomplete
-            ? "Possible alternative — evidence confidence is still low"
-            : sameFamily.length
-              ? "These aren’t as independent as they look."
-              : kind === "lower-risk-escape" && delta > -MIN_ESCAPE_POINTS && !(p.isAggregator && !c.provider.isAggregator)
-                ? "Same problem, different logo"
-                : undefined,
+          why: humanWhy(kind, p, c.provider, rel),
+          headline: humanWhy(kind, p, c.provider, rel),
+          annotation: annotationFor(tag),
+          tag,
           directional: kind === "lower-risk-escape",
           riskDelta: delta,
         };
@@ -154,62 +233,47 @@ export function buildAltCategories(
 
     const used = new Set(fromCurated.map((x) => x.providerId));
     const extras = scored
-      .filter((c) => !used.has(c.provider.id) && pred(c))
+      .filter((c) => !used.has(c.provider.id) && !claimed.has(c.provider.id) && pred(c))
       .slice(0, Math.max(0, limit - fromCurated.length))
       .map((c) => {
-        const sameFamily = related(c.provider.id);
-        const delta = (c.provider.publishedOverall ?? c.provider.scores.overall) - (p.publishedOverall ?? p.scores.overall);
-        const incomplete = c.provider.researchStatus === "in-research" || c.provider.researchStatus === "pending";
+        const rel = related(c.provider.id);
+        const tag = tagFor(kind, p, c.provider, rel);
+        const delta = pub(c.provider) - pub(p);
         return {
           providerId: c.provider.id,
           kind,
-          why: fallbackWhy(c),
+          why: humanWhy(kind, p, c.provider, rel),
           provider: c.provider,
-          headline: fallbackWhy(c),
-          annotation: incomplete
-            ? "Possible alternative — evidence confidence is still low"
-            : sameFamily.length
-              ? "These aren’t as independent as they look."
-              : undefined,
+          headline: humanWhy(kind, p, c.provider, rel),
+          annotation: annotationFor(tag),
+          tag,
           directional: kind === "lower-risk-escape",
           riskDelta: delta,
         };
       });
 
-    return [...fromCurated, ...extras].slice(0, limit);
+    const items = [...fromCurated, ...extras].slice(0, limit);
+    for (const item of items) claimed.add(item.providerId);
+    return items;
   }
 
-  const pScore = p.publishedOverall ?? p.scores.overall;
+  const pScore = pub(p);
 
   const groups: { kind: AltKind; heading: string; items: CategorisedAlt[] }[] = [
     {
       kind: "closest-replacement",
       heading: altHeading("closest-replacement"),
-      items: take(
-        "closest-replacement",
-        (c) => c.architecture >= 0.45 && related(c.provider.id).length === 0,
-        (c) => c.why,
-      ),
+      items: take("closest-replacement", (c) => c.architecture >= 0.45 && related(c.provider.id).length === 0),
     },
     {
       kind: "lower-risk-escape",
       heading: altHeading("lower-risk-escape"),
-      items: take(
-        "lower-risk-escape",
-        (c) => {
-          const delta = pScore - (c.provider.publishedOverall ?? c.provider.scores.overall);
-          const structural =
-            (p.isAggregator && !c.provider.isAggregator) ||
-            (p.isMoR && !c.provider.isMoR) ||
-            c.provider.types.includes("direct-acquirer");
-          return (delta >= MIN_ESCAPE_POINTS || structural) && related(c.provider.id).length === 0;
-        },
-        (c) => {
-          const delta = Math.round(pScore - (c.provider.publishedOverall ?? c.provider.scores.overall));
-          if (delta >= MIN_ESCAPE_POINTS) return `↓ ${delta} risk points. Your emergency exit — not a clone.`;
-          return "Actually reduces your dependency instead of just moving it around.";
-        },
-      ),
+      items: take("lower-risk-escape", (c) => {
+        if (reciprocalEscape(p, c.provider) && !strictlySafer(p, c.provider)) return false;
+        const delta = pScore - pub(c.provider);
+        const structural = structuralEscape(p, c.provider);
+        return (delta >= MIN_ESCAPE_POINTS || (structural && strictlySafer(p, c.provider))) && related(c.provider.id).length === 0;
+      }),
     },
     {
       kind: "diversify-rail",
@@ -220,53 +284,30 @@ export function buildAltCategories(
           c.provider.types.includes("pay-by-bank") ||
           c.provider.types.includes("alternative-payment-method") ||
           (c.provider.types.includes("wallet") && !p.types.includes("wallet")),
-        () => "This is diversification. Another card processor is useful; another rail is better.",
         2,
       ),
     },
     {
       kind: "easier-onboarding",
       heading: altHeading("easier-onboarding"),
-      items: take(
-        "easier-onboarding",
-        (c) => c.provider.focus !== "enterprise" && c.provider.isAggregator,
-        () => "Easy to join. Slightly harder to sleep at night. Not a lower-risk claim.",
-        1,
-      ),
+      items: take("easier-onboarding", (c) => c.provider.focus !== "enterprise" && c.provider.isAggregator, 1),
     },
     {
       kind: "enterprise-step-up",
       heading: altHeading("enterprise-step-up"),
-      items: p.focus === "enterprise" && pScore < 50
-        ? []
-        : take(
-            "enterprise-step-up",
-            (c) => c.provider.focus !== "sme" && (c.provider.types.includes("direct-acquirer") || c.provider.types.includes("psp")),
-            () => "Probably overkill unless you’re moving serious volume.",
-            1,
-          ),
+      items:
+        p.focus === "enterprise" && pScore < 50
+          ? []
+          : take(
+              "enterprise-step-up",
+              (c) => c.provider.focus !== "sme" && (c.provider.types.includes("direct-acquirer") || c.provider.types.includes("psp")),
+              1,
+            ),
     },
     {
       kind: "merchant-of-record",
       heading: altHeading("merchant-of-record"),
-      items: p.isMoR
-        ? []
-        : take(
-            "merchant-of-record",
-            (c) => c.provider.isMoR,
-            () => "They handle the tax paperwork. You handle a fatter dependency.",
-            1,
-          ),
-    },
-    {
-      kind: "backup-not-replacement",
-      heading: altHeading("backup-not-replacement"),
-      items: take(
-        "backup-not-replacement",
-        (c) => c.provider.types.includes("wallet") || c.provider.types.includes("pay-by-bank"),
-        () => "Good backup. Bad escape plan.",
-        1,
-      ),
+      items: p.isMoR ? [] : take("merchant-of-record", (c) => c.provider.isMoR, 1),
     },
   ];
 

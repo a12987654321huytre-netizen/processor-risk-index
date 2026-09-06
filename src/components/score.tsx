@@ -27,9 +27,9 @@ export function ScoreNumber({
   const band = bandFor(value);
   const sizes = { sm: "text-lg", md: "text-3xl", lg: "text-5xl" };
   return (
-    <span className={cn("tabular font-display font-semibold tracking-tight", sizes[size], bandClass(band?.id))}>
+    <span className={cn("tabular font-mono font-medium tracking-tight", sizes[size], bandClass(band?.id))}>
       {value}
-      <span className="text-ink-subtle font-sans text-sm font-normal tracking-normal"> / 100</span>
+      <span className="text-ink-subtle font-mono text-xs font-normal tracking-normal"> / 100</span>
     </span>
   );
 }
@@ -86,7 +86,7 @@ export function ConfidenceBadge({ value }: { value: number }) {
         ? "A usable evidence-based assessment; important research gaps remain."
         : "Unusually strong evidence supporting this assessment.";
   return (
-    <span className={cn("inline-flex rounded-sm px-2 py-1 text-xs font-medium", tone)} title={title}>
+    <span className={cn("inline-flex rounded-sm px-2 py-1 text-xs font-mono font-medium", tone)} title={title}>
       {value} · {c.label}
     </span>
   );

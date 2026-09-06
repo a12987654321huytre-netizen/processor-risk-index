@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowRight, Search } from "lucide-react";
 import { PROVIDERS, RESEARCH_STATS, filterProviders, searchProviders } from "@/data";
-import { riskiestFirst, safestFirst } from "@/data/scoring";
+import { rankProviders, riskiestFirst, safestFirst } from "@/data/scoring";
 import { RankCards, RankTable } from "@/components/rank-table";
 import { ResearchTracker } from "@/components/research-tracker";
 import { Button } from "@/components/ui/button";
@@ -57,9 +57,9 @@ function rowsFor(view: HomeView) {
     case "high-ticket":
       return filterProviders({ model: "high-ticket", sort: "risk-desc" });
     case "smb":
-      return [...PROVIDERS].filter((p) => p.focus !== "enterprise").sort((a, b) => b.publishedOverall - a.publishedOverall);
+      return rankProviders([...PROVIDERS].filter((p) => p.focus !== "enterprise"));
     case "enterprise":
-      return [...PROVIDERS].filter((p) => p.focus !== "sme").sort((a, b) => b.publishedOverall - a.publishedOverall);
+      return rankProviders([...PROVIDERS].filter((p) => p.focus !== "sme"));
     default:
       return riskiestFirst(PROVIDERS);
   }
@@ -203,11 +203,11 @@ function Home() {
 
       <section className="page-wrap pb-16">
         <h2 className="font-display text-2xl">What this is not</h2>
-        <ul className="mt-4 grid gap-3 md:grid-cols-2 text-sm text-ink-muted">
-          <li className="rounded-md border border-border bg-bg-elevated p-4">Not a fee comparison. Your 2.9% is not the scary bit.</li>
-          <li className="rounded-md border border-border bg-bg-elevated p-4">Not an affiliate ranking. They can buy an ad. They cannot buy a better score.</li>
-          <li className="rounded-md border border-border bg-bg-elevated p-4">Not a claim that Reddit is a court. Anecdotes are labelled. Contracts are cited.</li>
-          <li className="rounded-md border border-border bg-bg-elevated p-4">Not legal advice. Read the agreement that actually governs your MID.</li>
+        <ul className="mt-4 grid gap-0 text-sm text-ink-muted border-t border-border">
+          <li className="border-b border-border py-3">Not a fee comparison. Your 2.9% is not the scary bit.</li>
+          <li className="border-b border-border py-3">Not an affiliate ranking. They can buy an ad. They cannot buy a better score.</li>
+          <li className="border-b border-border py-3">Not a claim that Reddit is a court. Anecdotes are labelled. Contracts are cited.</li>
+          <li className="border-b border-border py-3">Not legal advice. Read the agreement that actually governs your MID.</li>
         </ul>
         <p className="mt-6 text-sm">
           Last recalculated {LAST_RECALCULATED}. Last research pass {LAST_VERIFIED}.{" "}
@@ -222,8 +222,8 @@ function Home() {
 
 function HomeCard({ to, title, body }: { to: string; title: string; body: string }) {
   return (
-    <Link to={to} className="rounded-lg border border-border bg-bg-elevated p-5 hover:border-border-strong block">
-      <h2 className="font-display text-xl">{title}</h2>
+    <Link to={to} className="border border-border bg-bg-elevated p-4 hover:border-border-strong block">
+      <h2 className="font-sans text-lg font-medium">{title}</h2>
       <p className="mt-2 text-sm text-ink-muted">{body}</p>
     </Link>
   );

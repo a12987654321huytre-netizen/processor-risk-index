@@ -141,6 +141,8 @@ export interface DimensionScores {
 
 export interface Scores extends DimensionScores {
   overall: number;
+  /** Unrounded 0–100. Ranking uses this when displayed integers tie. */
+  overallRaw: number;
 }
 
 export interface RiskFlags {

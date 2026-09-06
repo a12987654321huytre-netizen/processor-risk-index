@@ -68,7 +68,7 @@ export function CompareView({ ids }: { ids: string[] }) {
       ) : null}
 
       {warnings.map((w) => (
-        <p key={w.id} className="mt-4 rounded-md border border-risk-high/30 bg-risk-high-bg p-3 text-sm text-risk-high">
+        <p key={w.id} className="mt-4 border border-risk-high/30 bg-risk-high-bg p-3 text-sm text-risk-high">
           {w.warning}
         </p>
       ))}
@@ -76,7 +76,7 @@ export function CompareView({ ids }: { ids: string[] }) {
       {selected.length < 2 ? (
         <p className="mt-8 text-ink-muted">Pick at least two processors.</p>
       ) : (
-        <div className="mt-8 overflow-x-auto hairline rounded-lg bg-bg-elevated">
+        <div className="mt-8 overflow-x-auto border border-border bg-bg-elevated">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-border">

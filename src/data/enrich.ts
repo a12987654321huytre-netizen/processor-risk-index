@@ -4,7 +4,7 @@ import { researchTier } from "./eligibility";
 import { explainAll } from "./rubric";
 import { SUPPORT_OVERRIDES, structuralNoteFor } from "./research/overrides";
 import { COMMUNITY_INCIDENTS, COMMUNITY_POSITIVES, mergeIncidents } from "./research/incidents";
-import { withScores } from "./scoring";
+import { compareRiskDesc, withScores } from "./scoring";
 import { thinDimensions } from "./priors";
 import { PREVIOUS_SNAPSHOT } from "./score-history";
 
@@ -39,7 +39,7 @@ export function enrichProvider(raw: Provider, sources: Source[]): Provider {
     escalationQuality: override?.escalationQuality ?? raw.snapshot.escalationQuality ?? "insufficient-evidence",
   };
 
-  let contract = [...raw.contract];
+  const contract = [...raw.contract];
   if (raw.id === "stripe" && !contract.some((f) => f.sourceId === "stripe-support-plans")) {
     contract.push({
       id: "stripe-support-plans-f0",
@@ -111,9 +111,7 @@ export function enrichProvider(raw: Provider, sources: Source[]): Provider {
 
 export function enrichAll(raw: Provider[], sources: Source[]): Provider[] {
   const enriched = raw.map((p) => enrichProvider(p, sources));
-  const ranked = [...enriched].sort(
-    (a, b) => b.publishedOverall - a.publishedOverall || b.confidence - a.confidence || a.name.localeCompare(b.name),
-  );
+  const ranked = [...enriched].sort(compareRiskDesc);
   const rankById = new Map(ranked.map((p, i) => [p.id, i + 1]));
   return enriched.map((p) => {
     const rank = rankById.get(p.id) ?? ranked.length;
