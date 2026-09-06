@@ -10,6 +10,7 @@
     "dev": "node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080",
     "build": "node scripts/ci-build.mjs",
     "build:edgeone": "node scripts/build-edgeone.mjs",
+    "build:pages": "node scripts/build-edgeone.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
     "preview": "node scripts/with-app-env.mjs vite preview",
