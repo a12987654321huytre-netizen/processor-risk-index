@@ -1,3 +1,9 @@
+# Cloudflare Workers Builds (`npx wrangler deploy`).
+# Assets-only SPA — no Worker script. Do not use pages_build_output_dir here;
+# that flag is for classic Pages and makes `wrangler deploy` fail.
 name = "processor-risk-index"
 compatibility_date = "2026-09-06"
-pages_build_output_dir = "./dist"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"

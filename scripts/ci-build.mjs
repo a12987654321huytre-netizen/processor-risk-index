@@ -10,6 +10,7 @@ import { spawnSync } from "node:child_process";
 function isStaticPagesCi() {
   if (process.env.EDGEONE === "1") return true;
   if (process.env.CF_PAGES === "1") return true;
+  if (process.env.WORKERS_CI === "1") return true;
   const cwd = process.cwd().replace(/\\/g, "/");
   return cwd.includes("/dev/shm/repo/") || cwd.includes("/code/repo/");
 }

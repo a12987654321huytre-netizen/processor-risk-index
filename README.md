@@ -16,19 +16,32 @@ npm install
 npm run dev
 ```
 
-## Deploy on Cloudflare Pages
+## Deploy on Cloudflare
 
-This is the Git deploy path. In [Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git](https://dash.cloudflare.com/?to=/:account/pages/new/provider/github), import `a12987654321huytre-netizen/processor-risk-index`.
+Git import in the dashboard. A default Worker import uses `npm run build` then `npx wrangler deploy` — that is the path this repo is set up for.
+
+### Workers (dashboard default)
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npm run build` |
+| Deploy command | `npx wrangler deploy` |
+| Root directory | `/` |
+| Node | 22 (from `.nvmrc`) |
+
+`npm run build` sees `WORKERS_CI=1` and writes a static SPA to `dist/`. `wrangler.toml` publishes that folder as assets, with SPA fallback for `/processor/paypal` and `/rankings`.
+
+### Pages (classic)
+
+In [Workers & Pages → Create → Pages → Connect to Git](https://dash.cloudflare.com/?to=/:account/pages/new/provider/github), import the same repo.
 
 | Setting | Value |
 | --- | --- |
 | Framework preset | Vite (or None) |
 | Build command | `npm run build:pages` |
 | Build output directory | `dist` |
-| Root directory | `/` (leave default) |
+| Root directory | `/` |
 | Environment variable | `NODE_VERSION` = `22` |
-
-Node 22 on Cloudflare is current enough for Vite 8. `build:pages` prerenders the site into `dist/` and writes a `_redirects` SPA fallback so `/processor/paypal` and `/rankings` resolve.
 
 After the first deploy, every push to `main` republishes.
 
